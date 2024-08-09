@@ -2,7 +2,11 @@
 
 ### Current Progress
 
-I put together the classes and basic functions. Trade, marriage, network, and more advanced elements hasn't been implemented or only symbolically implimented.
+Added a animation gif showing land capacity change and migration;
+Added migration logic and family splitting;
+Initialized social network connectivity and added distance calculation;
+Initialized luxury good exchanging with the village but not with families.
+TODO: finish trading and implement marriage.
 
 ### Usage Manual
 Run the main.py or can create a jupyter notebook and copy-paste the main.py code. If using jupyter notebook, restarting the kernal is sometimes required.
