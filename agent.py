@@ -1,6 +1,7 @@
 import random
 import scipy.special as sp
 import pandas as pd
+# from household import Household
 vec1 = pd.read_csv('demog_vectors.csv')
 
 class Vec1:
@@ -16,17 +17,18 @@ class Vec1:
         
 
 class Agent:
-    def __init__(self, age, gender, household_id, vec1):
+    def __init__(self, age, gender, household_id, vec1, fertility):
         self.age = age
         self.gender = gender
         self.household_id = household_id
         self.vec1 = vec1  
         self.is_alive = True  
-        # self.newborn_agents = []
+        self.newborn_agents = []
+        self.fertility = fertility
 
     def get_age_group_index(self):
         """Determine the age group index for the agent."""
-        # Ensure the age does not exceed the number of age groups
+        
         if self.age >= len(self.vec1.phi):
             return len(self.vec1.phi) - 1
         return self.age
@@ -49,6 +51,8 @@ class Agent:
             # work_output = phi * (self.calories_needed + self.proteins_needed)  # Example calculation
             work_output = phi
             print(f"Agent {self.household_id} works and produces {work_output:.2f} units of output.")
+            return work_output
+        return 0
 
     def age_and_die(self):
         """Simulate aging, survival, and reproduction based on probabilities."""
@@ -61,36 +65,30 @@ class Agent:
         
         age_index = self.get_age_group_index()
         survival_probability = p0[age_index]  # survival probability
-        print(age_index, survival_probability)
+        # print(age_index, survival_probability)
         if random.random() > survival_probability:
             self.is_alive = False
             print(f"Agent {self.household_id} has died at age {self.age}.")
-            household = self.get_household()
-            if household:
-                household.remove_member(self)
+            # household = self.get_household()
+            # if household:
+            #     household.remove_member(self)
             return
         
-        # New born
-        fertility_probability = m0[age_index]  # Age-specific fertility probability
-        if random.random() < fertility_probability:
+        fertility_probability = m0[age_index]
+        self.fertility = fertility_probability
+        if random.random() < fertility_probability and self.gender == 'female':
             print(f"Agent {self.household_id} reproduces at age {self.age}.")
             self.reproduce()
-        print(f"Agent {self.household_id} is now {self.age} years old.")
 
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""
         new_agent = Agent(
-        age=0, 
+        age = 0, 
         gender=random.choice(['male', 'female']),  
         household_id=self.household_id,
-        vec1=self.vec1
+        vec1=self.vec1,
+        fertility = 0
         )
         print(f"Newborn Agent added to Household {self.household_id}.")
-        # self.newborn_agents.append(new_agent)
-        
-        household = self.get_household()
-        if household:
-            household.extend(new_agent)
+        self.newborn_agents.append(new_agent)
     
-    def get_household(self):
-        pass

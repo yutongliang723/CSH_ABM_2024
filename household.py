@@ -1,83 +1,91 @@
 import random
 from agent import Agent
-
+# from village import Village
 class Household:
-    def __init__(self, id, members, location, food_storage, luxury_good_storage, land_quality, land_max_capacity, land_recovery_rate):
+    def __init__(self, id, members, location, food_storage, luxury_good_storage):
         self.id = id
         self.members = members
-        self.location = location
-        self.food_storage = food_storage
-        self.luxury_good_storage = luxury_good_storage
-        self.land_quality = land_quality
-        self.land_max_capacity = land_max_capacity
-        self.land_recovery_rate = land_recovery_rate
+        self.location = location  
+        self.food_storage = []
+        self.food_storage_timestamps = []
+        self.luxury_good_storage = 0
+        # self.time = 0
+        self.current_step = 0
+        self.food_expiration_steps = 3
+    
+    def add_food(self, amount):
+        """Add food with the current step count."""
+        self.food_storage.append((amount, self.current_step))
+        print(f"Added {amount:.2f} units of food to Household {self.id}.")
 
-    def produce_food(self):
-        """Simulate food production based on land quality."""
+    def update_food_storage(self):
+        """Remove expired food from storage based on the current step."""
+        self.food_storage = [(amount, age_added) for amount, age_added in self.food_storage
+                             if self.current_step - age_added < self.food_expiration_steps]
+        print(f"Updated food storage for Household {self.id}.")
 
-        production_amount = random.randint(50, 100) * self.land_quality
-        self.food_storage += production_amount
+    def advance_step(self):
+        """Advance the step count."""
+        self.current_step += 1
+
+    def get_land_quality(self, village):
+        return village.land_types[self.location]['quality']
+
+    def get_land_max_capacity(self, village):
+        return village.land_types[self.location].get('max_capacity', 1.0)
+    
+
+    def produce_food(self, village):
+        """Simulate food production based on land quality and the work done by household members."""
+        land_quality = village.land_types[self.location]['quality']
+        production_amount = 0
+        for member in self.members:
+            if member.is_alive:
+                work_output = member.work() 
+                production_amount += work_output * land_quality * 20
+
+        # self.food_storage += production_amount
+        self.add_food(production_amount)
+        # self.food_storage_timestamps.append((self.food_storage, self.time))
         print(f"Household {self.id} produced {production_amount:.2f} units of food.")
-
-        # Update land capacity based on farming intensity
-        farming_intensity = 0.5  # TODO
-        self.update_land_capacity(farming_intensity)
-
+    
     def consume_food(self):
         """Simulate food consumption by household members."""
-        total_food_needed = 0
-        for member in self.members:
-            age_index = member.get_age_group_index() 
-            rho = member.vec1.rho[age_index]
-            total_food_needed += rho
+        total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
+        self.food_storage.sort(key=lambda x: x[1])
+        # remove expired food
+        self.food_storage = [(amount, age_added) for amount, age_added in self.food_storage
+                             if self.current_step - age_added < self.food_expiration_steps]
 
-        total_food_needed /= 100  # Simplified
         
-        if self.food_storage >= total_food_needed:
-            self.food_storage -= total_food_needed
+        # self.food_storage_timestamps = [(amount, timestamp) for amount, timestamp in self.food_storage_timestamps]
+        #  if self.time - timestamp < 3
+        total_available_food = sum(amount for amount, _ in self.food_storage)
+        
+        if total_available_food >= total_food_needed:
+            food_to_consume = total_food_needed
+            for amount, age_added in self.food_storage:
+                if food_to_consume <= amount:
+                    self.food_storage[0] = (amount - food_to_consume, age_added)
+                    break
+                else:
+                    self.food_storage.pop(0)
+                    food_to_consume -= amount
             print(f"Household {self.id} consumed {total_food_needed:.2f} units of food.")
         else:
             print(f"Household {self.id} does not have enough food. Consuming all available food.")
-            self.food_storage = 0
+            self.food_storage = []
 
-    def update_land_capacity(self, farming_intensity):
-        """
-        Update the land capacity each year.
-        K_{i}^{(t+1)} = K_{i}^{t} + c(K_{\text{max}} - K_{i}^{t}) - x_{i}aK_{i}^{t}
-        
-        :param farming_intensity: Intensity of farming (proportion of land farmed)
-        """
-        self.land_quality = (self.land_quality +
-                             self.land_recovery_rate * (self.land_max_capacity - self.land_quality) -
-                             farming_intensity * self.land_quality)
-        
-        # Ensure land_quality stays within valid bounds
-        self.land_quality = max(0, min(self.land_quality, self.land_max_capacity))
-        
-        print(f"Household {self.id} updated land quality to {self.land_quality:.2f}.")
-
-    def trade_resources(self):
-        """Simulate trading resources with other households."""
-        if not self.luxury_good_storage:
-            print(f"Household {self.id} has no luxury goods to trade.")
-            return
-        
-        trade_amount = min(self.luxury_good_storage, random.randint(1, 10))
-        self.luxury_good_storage -= trade_amount
-        print(f"Household {self.id} traded {trade_amount} units of luxury goods.")
-
-    def migrate(self):
-        new_location = f"New Location {random.randint(1, 100)}"
-        self.location = new_location
-        print(f"Household {self.id} migrated to {self.location}.")
+    def get_distance(self, location1, location2):
+        x1, y1 = map(int, location1.split(','))
+        x2, y2 = map(int, location2.split(','))
+        return abs(x1 - x2) + abs(y1 - y2)
 
     def extend(self, new_member):
-        """Add a new agent to the household."""
         self.members.append(new_member)
         print(f"Household {self.id} has a newborn.")
-    
+
     def remove_member(self, member):
-        """Remove a member from the household."""
         if member in self.members:
             self.members.remove(member)
             print(f"Household {self.id} removed member {member.household_id}.")
