@@ -2,6 +2,7 @@ import random
 import scipy.special as sp
 import pandas as pd
 # from household import Household
+import household
 vec1 = pd.read_csv('demog_vectors.csv')
 
 class Vec1:
@@ -41,34 +42,37 @@ class Agent:
             rho = self.vec1.rho[age_index]
             # consumption_amount = phi * (self.calories_needed + self.proteins_needed + self.water_needed) * rho
             consumption_amount = rho * 10
-            print(f"Agent {self.household_id} consumes {consumption_amount:.2f} units of resources.")
+            # print(f"Agent {self.household_id} consumes {consumption_amount:.2f} units of resources.")
 
     def work(self):
         """Simulate work done by the agent based on effectiveness parameter."""
+        work_output = 0
         if self.is_alive:
             age_index = self.get_age_group_index()
             phi = self.vec1.phi[age_index]
             # work_output = phi * (self.calories_needed + self.proteins_needed)  # Example calculation
-            work_output = phi
-            print(f"Agent {self.household_id} works and produces {work_output:.2f} units of output.")
+            work_output = phi 
+            # print(f"Agent {self.household_id} works and produces {work_output:.2f} units of output.")
             return work_output
-        return 0
+        return work_output
 
     def age_and_die(self):
+        from household import Household
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
             return
-
+        # avg_food_storage = household.food_storage / len(household.members)
+        # # print(avg_food_storage)
         self.age += 1
         p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, 1)
         m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, 1)
         
         age_index = self.get_age_group_index()
         survival_probability = p0[age_index]  # survival probability
-        # print(age_index, survival_probability)
+        # # print(age_index, survival_probability)
         if random.random() > survival_probability:
             self.is_alive = False
-            print(f"Agent {self.household_id} has died at age {self.age}.")
+            # print(f"Agent {self.household_id} has died at age {self.age}.")
             # household = self.get_household()
             # if household:
             #     household.remove_member(self)
@@ -77,7 +81,7 @@ class Agent:
         fertility_probability = m0[age_index]
         self.fertility = fertility_probability
         if random.random() < fertility_probability and self.gender == 'female':
-            print(f"Agent {self.household_id} reproduces at age {self.age}.")
+            # print(f"Agent {self.household_id} reproduces at age {self.age}.")
             self.reproduce()
 
     def reproduce(self):
@@ -89,6 +93,6 @@ class Agent:
         vec1=self.vec1,
         fertility = 0
         )
-        print(f"Newborn Agent added to Household {self.household_id}.")
+        # print(f"Newborn Agent added to Household {self.household_id}.")
         self.newborn_agents.append(new_agent)
     

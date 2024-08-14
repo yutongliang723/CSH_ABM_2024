@@ -18,9 +18,9 @@ def generate_random_agent(household_id, vec1):
 def generate_random_household(id, num_members, location, vec1):
     """Generate a random household with a specified number of agents."""
     members = [generate_random_agent(id, vec1) for _ in range(num_members)]
-    # food_storage = random.randint(100, 1000)
+    food_storage = random.randint(1, 10)
     luxury_good_storage = 0
-    food_storage = 0
+    # food_storage = 0
     return Household(id, members, location, food_storage, luxury_good_storage)
 
 def generate_random_village(num_households, num_land_cells, vec1):
@@ -30,10 +30,10 @@ def generate_random_village(num_households, num_land_cells, vec1):
     for i in range(num_land_cells):
         location = f'{i // grid_size},{i % grid_size}'
         land_types[location] = {
-            'quality': random.uniform(0.0, 1.0),
+            'quality': random.uniform(1,2),
             'occupied': False,
-            'max_capacity': random.uniform(0.5, 1.5),
-            'recovery_rate': random.uniform(0.01, 0.1)
+            'max_capacity': random.uniform(5, 10),
+            'recovery_rate': random.uniform(0.05, 0.1)
         }
 
     households = []

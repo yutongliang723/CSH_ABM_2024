@@ -7,6 +7,7 @@ from IPython.display import display
 import ipywidgets as widgets
 import random
 from agent import Agent
+from agent import Vec1
 
 class Village:
     def __init__(self, households, land_types):
@@ -15,6 +16,7 @@ class Village:
         self.time = 0
         self.population_over_time = []
         self.land_capacity_over_time = []
+        self.land_capacity_over_time_all = []
         self.food_storage_over_time = []
         self.land_usage_over_time = []
         self.average_fertility_over_time = []
@@ -53,7 +55,7 @@ class Village:
              
             if excess_food // 10 >= 1:
                 max_luxury_goods = min(excess_food // 10, self.luxury_goods_in_village)
-                # print("!!!!!!!!", excess_food // 10)
+                # # print("!!!!!!!!", excess_food // 10)
                 household.luxury_good_storage += max_luxury_goods
                 self.luxury_goods_in_village -= max_luxury_goods
                 food_to_exchange = max_luxury_goods * 10 
@@ -67,7 +69,7 @@ class Village:
                         food_to_exchange -= amount
             
                 self.spare_food.append((max_luxury_goods, self.time))
-                print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
+                # print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
         self.luxury_goods_in_village += 1
         self.update_spare_food_expiration()
     
@@ -82,7 +84,8 @@ class Village:
             food_storage_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
             total_available_food = sum(amount for amount, _ in household.food_storage)
             excess_food = total_available_food - 2 * food_storage_needed
-
+            # select randomly
+            # loop through families: 2 types of trading -> look through connectivities
             # TODO: give condition of mutual trading
             if self.luxury_goods_in_village == 0 and excess_food // 10 >= 1:
                 best_trade = None
@@ -132,7 +135,7 @@ class Village:
 
                         self.network[household.id]['connectivity'] += 1
                         self.network[best_trade]['connectivity'] += 1
-                        print(f"Household {household.id} traded with Household {best_trade}.")
+                        # print(f"Household {household.id} traded with Household {best_trade}.")
 
     def get_household_by_id(self, household_id):
         """Retrieve a household by its ID."""
@@ -148,13 +151,13 @@ class Village:
         land_quality = self.land_types[household.location]['quality']
         total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-        if total_food_storage < 1.5 * total_food_needed and land_quality < 0.3:
+        if total_food_storage < 1.5 * total_food_needed and land_quality < 0.5:
             if empty_land_cells:
                 best_land = min(empty_land_cells, key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality']))
                 self.land_types[household.location]['occupied'] = False
                 household.location = best_land[0]
                 self.land_types[household.location]['occupied'] = True
-                print(f"Household {household.id} migrated to {household.location}.")
+                # print(f"Household {household.id} migrated to {household.location}.")
 
     def get_distance(self, location1, location2):
         x1, y1 = map(int, location1.split(','))
@@ -172,7 +175,8 @@ class Village:
                     if len(household.members) < 5 or self.is_land_available():
                         new_agents.append(self.reproduce_agent(household, agent))
                     else:
-                        print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
+                        # print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
+                        pass
         
         household.members.extend(new_agents)
 
@@ -182,7 +186,7 @@ class Village:
     def is_land_available(self):
         return any(not data['occupied'] for data in self.land_types.values())
 
-    def reproduce_agent(self, household, parent_agent):
+    def reproduce_agent(self, household, parent_agent): # try not import
         """Create a new agent as the child of an existing agent."""
         new_agent = Agent(
             household_id=household.id,
@@ -190,51 +194,52 @@ class Village:
             gender=random.choice(['male', 'female']),
             vec1=parent_agent.vec1
         )
-        print(f"New agent born in Household {household.id}.")
+        # print(f"New agent born in Household {household.id}.")
         return new_agent
 
-    def split_household(self, household):
-        """Handle the splitting of a household when it grows too large."""
-        empty_land_cells = [loc for loc, data in self.land_types.items() if not data['occupied']]
-        if empty_land_cells:
+    # def split_household(self, household):
+    #     """Handle the splitting of a household when it grows too large."""
+    #     empty_land_cells = [loc for loc, data in self.land_types.items() if not data['occupied']]
+    #     if empty_land_cells:
 
-            num_members_to_split = len(household.members) // 2
-            new_members = household.members[:num_members_to_split]
-            household.members = household.members[num_members_to_split:]
-            total_food_storage = sum(amount for amount, _ in household.food_storage)
-            new_household_id = f"{household.id}->"
-            new_food_storage = total_food_storage
-            new_luxury_good_storage = household.luxury_good_storage / 2
+    #         num_members_to_split = len(household.members) // 2
+    #         new_members = household.members[:num_members_to_split]
+    #         household.members = household.members[num_members_to_split:]
+    #         total_food_storage = sum(amount for amount, _ in household.food_storage)
+    #         new_household_id = f"{household.id}->"
+    #         new_food_storage = total_food_storage
+    #         new_luxury_good_storage = household.luxury_good_storage / 2
 
-            new_household = Household(
-                id=new_household_id,
-                members=new_members,
-                location = None,  # new_location below
-                food_storage=[(new_food_storage, 0)],
-                luxury_good_storage=new_luxury_good_storage
-            )
+    #         new_household = Household(
+    #             id=new_household_id,
+    #             members=new_members,
+    #             location = None,  # new_location below
+    #             food_storage=[(new_food_storage, 0)],
+    #             luxury_good_storage=new_luxury_good_storage
+    #         )
 
-            new_location = random.choice(empty_land_cells)
-            self.land_types[new_location]['occupied'] = True
-            self.land_types[new_location]['household_id'] = new_household.id
-            new_household.location = new_location
-            self.households.append(new_household)
-            self.network[new_household.id] = {'connectivity': 0, 'luxury_goods': 0}
-            self.update_network_connectivity()
-            print(f"Household {household.id} split into Household {new_household_id} at location {new_location}.")
-        else:
-            print(f"No available land for splitting Household {household.id}. New household not created.")
+    #         new_location = random.choice(empty_land_cells)
+    #         self.land_types[new_location]['occupied'] = True
+    #         self.land_types[new_location]['household_id'] = new_household.id
+    #         new_household.location = new_location
+    #         self.households.append(new_household)
+    #         self.network[new_household.id] = {'connectivity': 0, 'luxury_goods': 0}
+    #         self.update_network_connectivity()
+    #         # print(f"Household {household.id} split into Household {new_household_id} at location {new_location}.")
+    #     else:
+    #         # print(f"No available land for splitting Household {household.id}. New household not created.")
+    #         pass
 
 
-    def run_simulation_step(self):
+    def run_simulation_step(self, vec1):
         """Run a single simulation step (year)."""
         self.time += 1
-        print(f"\nSimulation Year {self.time}")
-
+        # print(f"\nSimulation Year {self.time}")
+        # print(self.land_types)
         for household in self.households:
-            household.produce_food(self)
+            household.produce_food(self, vec1)
             household.consume_food()
-            household.update_food_storage() # clean the expired food
+            # household.update_food_storage() # clean the expired food
             self.migrate_household(household)
 
             dead_agents = []
@@ -252,22 +257,22 @@ class Village:
 
             for agent in dead_agents:
                 household.remove_member(agent)
-            print(f"Household {household.id} had {len(dead_agents)} members die.")
+            # print(f"Household {household.id} had {len(dead_agents)} members die.")
 
             for child in newborn_agents:
                 household.extend(child)
-            print(f"Household {household.id} had {len(newborn_agents)} newborns.")
+            # print(f"Household {household.id} had {len(newborn_agents)} newborns.")
 
             if len(household.members) > 5:
-                self.split_household(household)
+                household.split_household(self)
 
             household.advance_step()
         
         self.update_tracking_variables()
         self.track_land_usage()
         self.update_land_capacity()
-        # print(self.luxury_goods_in_village)
-        print(self.network)
+        # # print(self.luxury_goods_in_village)
+        # print(self.network)
         self.manage_luxury_goods()
         self.trade_luxury_goods()
         self.update_network_connectivity()
@@ -289,20 +294,20 @@ class Village:
                 if farming_intensity == 0:
                     land['occupied'] = False
                     land['household_id'] = None
-                    print(f"Land at {location} is now unoccupied.")
+                    # print(f"Land at {location} is now unoccupied.")
                 
             else:
                 # If no household is found, land remains unoccupied
                 land['occupied'] = False
                 land['household_id'] = None
-                # print(f"Land at {location} remains unoccupied.")            
+                # # print(f"Land at {location} remains unoccupied.")            
             new_quality = (
                         land_quality +
                         land_recovery_rate * (land_max_capacity - land_quality) -
-                        farming_intensity * land_quality
+                        farming_intensity * 0.1 * land_quality
                     )
             land['quality'] = max(0, min(new_quality, land_max_capacity))
-            # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
+            # # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
 
     def track_land_usage(self):
         """Track the land usage and quality over time."""
@@ -325,10 +330,10 @@ class Village:
     def generate_animation(self, grid_dim):
         """Generate an animation of land usage over time."""
         if not self.land_usage_over_time:
-            print("Error: No land usage data available for animation.")
+            # print("Error: No land usage data available for animation.")
             return
 
-        cmap = plt.get_cmap('Reds')
+        cmap = plt.get_cmap('OrRd')
         try:
             font = ImageFont.truetype("arial.ttf", 20)  # Use a TrueType font
         except IOError:
@@ -347,15 +352,16 @@ class Village:
                 y *= 100
 
                 quality = land_data['quality']
-                color = tuple(int(255 * c) for c in cmap(quality)[:3])
+                color = tuple(int(255 * c) for c in cmap(quality/2)[:3])
 
                 draw.rectangle([(x, y), (x + 100, y + 100)], fill=color)
 
                 if land_data['occupied']:
+                    quality = land_data['quality']
                     household_id = land_data['household_id']
                     household = self.get_household_by_id(household_id) 
                     agent_num = land_data['num_members']
-                    text = f"{household_id}: {agent_num}"
+                    text = f"{household_id}: # {agent_num}. Q: {round(quality, 2)}"
 
                     bbox = draw.textbbox((x, y), text, font=font)
                     text_width = bbox[2] - bbox[0]
@@ -378,10 +384,10 @@ class Village:
             animation_frames.append(image)
 
         if not animation_frames:
-            print("Error: No animation frames generated.")
+            # print("Error: No animation frames generated.")
             return
 
-        print(f"Generated {len(animation_frames)} frames for animation.")
+        # print(f"Generated {len(animation_frames)} frames for animation.")
 
         # save to gif
         animation_frames[0].save('village_simulation.gif', format='GIF', append_images=animation_frames[1:], save_all=True, duration=200, loop=0, optimize=True)
@@ -389,7 +395,9 @@ class Village:
 
     def update_tracking_variables(self):
         population = sum(len(household.members) for household in self.households)
-        land_capacity = sum(household.get_land_quality(self) for household in self.households)
+        # land_capacity = sum(household.get_land_quality(self) for household in self.households)
+        land_capcity_all = sum(self.land_types[key]['quality'] for key in self.land_types)
+        land_capacity = sum(self.land_types[key]['quality'] for key in self.land_types if self.land_types[key]['occupied'] == True)
         # total_food = sum(household.food_storage for household in self.households)
         total_food = sum(
         sum(amount for amount, _ in household.food_storage)  # Sum the amounts in each tuple
@@ -398,6 +406,7 @@ class Village:
         self.population_over_time.append(population)
         self.land_capacity_over_time.append(land_capacity)
         self.food_storage_over_time.append(total_food)
+        self.land_capacity_over_time_all.append(land_capcity_all)
         house_num = sum(len(household.members) for household in self.households)
         if house_num != 0:
             self.average_fertility_over_time.append(
@@ -405,8 +414,8 @@ class Village:
                 house_num
             )
         else:self.average_fertility_over_time.append(0)
-
-        # print(self.average_fertility_over_time)
+        # print(self.land_types)
+        # # print(self.average_fertility_over_time)
 
 
     def plot_simulation_results(self, file_name):
@@ -417,7 +426,8 @@ class Village:
         plt.ylabel('Population')
         plt.legend()
         plt.subplot(4, 1, 2)
-        plt.plot(self.land_capacity_over_time, label='Land Capacity')
+        plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
+        plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--') 
         plt.xlabel('Time Step')
         plt.ylabel('Land Capacity')
         plt.legend()
