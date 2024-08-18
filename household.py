@@ -80,7 +80,7 @@ class Household:
             self.food_storage = []
             # print(f'Attention, there is not enough food for familly{self.household_id}')
 
-        print('Household total food need:', total_food_needed, '\n', 'Household total availabel food', total_available_food)
+        # print('Household total food need:', total_food_needed, '\n', 'Household total availabel food', total_available_food)
 
     def get_distance(self, location1, location2):
         x1, y1 = map(int, location1.split(','))
@@ -125,7 +125,21 @@ class Household:
             village.land_types[new_location]['household_id'] = new_household.id
             new_household.location = new_location
             village.households.append(new_household)
-            village.network[new_household.id] = {'connectivity': 0, 'luxury_goods': 0}
+
+            village.network[new_household.id] = {
+                    'connectivity': {},  
+                    'luxury_goods': new_household.luxury_good_storage
+                }
+            
+            for other_household in village.households:
+                id1 = village.get_household_by_id(new_household.id)
+                id2 = village.get_household_by_id(other_household.id)
+                if id1.location != id2.location:
+                    distance = village.get_distance(id1.location, id2.location)
+                    # print('ID: ', type(id1), id2)
+                    # print('Distance: ', id1.location, id2.location)
+                    village.network[new_household.id]['connectivity'][other_household.id] = max(0, 1/distance)
+
             village.update_network_connectivity()
             # print(f"Household {household.id} split into Household {new_household_id} at location {new_location}.")
         else:
