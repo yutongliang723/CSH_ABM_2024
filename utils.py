@@ -8,11 +8,12 @@ import math
 
 
 def generate_random_agent(household_id, vec1):
+
     """Generate a random agent with basic attributes."""
     m0 = vec1.mstar * sp.gdtr(1.0 / vec1.fertscale, vec1.fertparm, 1)
     age = random.randint(1, 30)
     gender = random.choice(['male', 'female'])
-    fertility = m0[age] * 5
+    fertility = m0[age]
     return Agent(age, gender, household_id, vec1, fertility)
 
 def generate_random_household(id, num_members, location, vec1):
@@ -62,6 +63,6 @@ def print_village_summary(village):
             print(f"  Members:")
             for member in household.members:
 
-                print(f"    Agent - Age: {member.age}, Gender: {member.gender}, Alive: {member.is_alive}, Fertility Prob: {member.fertility}")
+                print(f"    Agent - Age: {member.age}, Gender: {member.gender}, Alive: {member.is_alive}, Fertility Prob: {member.fertility}， Marital Status: {member.marital_status}")
         else:
             print(f"  No members in this household.")

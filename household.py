@@ -41,6 +41,7 @@ class Household:
         # print(f'Land quality {land_quality}')
         production_amount = 0
         for member in self.members:
+            # print(member)
             if member.is_alive:
                 work_output = member.work() 
                 # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
@@ -101,47 +102,69 @@ class Household:
     
     def split_household(self, village):
         """Handle the splitting of a household when it grows too large."""
+        
         empty_land_cells = [loc for loc, data in village.land_types.items() if not data['occupied']]
+        
         if empty_land_cells:
+            new_household_members = []
 
-            num_members_to_split = len(self.members) // 2
-            new_members = self.members[:num_members_to_split]
-            self.members = self.members[num_members_to_split:]
+            for agent in self.members:
+                if agent.marital_status == 'married':
+                    # partner = agent.partner_id()
+                    partner = village.get_agent_by_id(agent.partner_id)
+                    if partner and partner not in new_household_members:
+                        new_household_members.extend([agent, partner])
+                        
+            for member in new_household_members:
+                self.remove_member(member)
+
+            remaining_members_to_add = len(self.members) // 2 - len(new_household_members)
+            additional_members = self.members[:remaining_members_to_add]
+            new_household_members.extend(additional_members)
+
+            for member in new_household_members:
+                if member in self.members:
+                    self.remove_member(member)
+
             total_food_storage = sum(amount for amount, _ in self.food_storage)
-            new_household_id = f"{self.id}->"
-            new_food_storage = total_food_storage
-            new_luxury_good_storage = self.luxury_good_storage / 2
+            new_food_storage = total_food_storage // 2
+            self.food_storage = [(total_food_storage - new_food_storage, 0)]
 
+            new_luxury_good_storage = self.luxury_good_storage // 2
+            self.luxury_good_storage -= new_luxury_good_storage
+            new_household_id = f"{self.id}->"
+            
+            # Create the new household
             new_household = Household(
-                id=new_household_id,
-                members=new_members,
-                location = None,  # new_location below
+                new_household_id,
                 food_storage=[(new_food_storage, 0)],
-                luxury_good_storage=new_luxury_good_storage
+                luxury_good_storage=new_luxury_good_storage,
+                members=new_household_members,
+                location = None
             )
 
             new_location = random.choice(empty_land_cells)
             village.land_types[new_location]['occupied'] = True
             village.land_types[new_location]['household_id'] = new_household.id
             new_household.location = new_location
+
+            # Add the new household to the village
             village.households.append(new_household)
 
+            # Update the village network
             village.network[new_household.id] = {
-                    'connectivity': {},  
-                    'luxury_goods': new_household.luxury_good_storage
-                }
-            
+                'connectivity': {},
+                'luxury_goods': new_household.luxury_good_storage
+            }
+
             for other_household in village.households:
-                id1 = village.get_household_by_id(new_household.id)
-                id2 = village.get_household_by_id(other_household.id)
-                if id1.location != id2.location:
-                    distance = village.get_distance(id1.location, id2.location)
-                    # print('ID: ', type(id1), id2)
-                    # print('Distance: ', id1.location, id2.location)
+                if other_household.location != new_household.location and other_household.id != new_household.id:
+                    distance = village.get_distance(new_household.location, other_household.location)
                     village.network[new_household.id]['connectivity'][other_household.id] = max(0, 1/distance)
+                    village.network[other_household.id]['connectivity'][new_household.id] = max(0, 1/distance)
 
             village.update_network_connectivity()
-            # print(f"Household {household.id} split into Household {new_household_id} at location {new_location}.")
+            # print(f"Household {self.id} split into Household {new_household.id} at location {new_location}.")
         else:
-            # print(f"No available land for splitting Household {household.id}. New household not created.")
+            # print(f"No available land for splitting Household {self.id}. New household not created.")
             pass

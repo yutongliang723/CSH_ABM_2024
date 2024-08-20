@@ -24,6 +24,8 @@ class Village:
         self.spare_food = []
         self.luxury_goods_in_village = 0
         self.food_expiration_steps = 3
+        self.population = []
+        self.num_house = []
 
     def initialize_network(self):
         
@@ -37,11 +39,11 @@ class Village:
             for other_household in self.households:
                 id1 = self.get_household_by_id(household.id)
                 id2 = self.get_household_by_id(other_household.id)
-                if id1.location != id2.location:
+                if id1 != id2:
                     distance = self.get_distance(id1.location, id2.location)
                     # print('Distance: ', id1.location, id2.location)
                     self.network[household.id]['connectivity'][other_household.id] = max(0, 1/distance)
-
+                    # print(other_household.id)
         self.luxury_goods_in_village = 50
 
 
@@ -85,7 +87,7 @@ class Village:
             
                 self.spare_food.append((max_luxury_goods, self.time))
                 print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
-        # self.luxury_goods_in_village += 1 
+        self.luxury_goods_in_village += 1 
         # food should still be usable after trading. # pair family with the links
         # 1. check who want to trade; 2. check connectivity. 
         # similar to marriages. women married or not. widowed
@@ -187,7 +189,7 @@ class Village:
                 sorted_land_cells = sorted(empty_land_cells, key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality']))
             
                 best_land = sorted_land_cells[0]   
-                print(best_land)         
+                # print(best_land)         
                 self.land_types[household.location]['occupied'] = False
                 household.location = best_land[0]
                 self.land_types[household.location]['occupied'] = True
@@ -204,12 +206,12 @@ class Village:
 
         for agent in household.members:
             if agent.is_alive:
-                agent.age_and_die(self.land_types)
+                agent.age_and_die(self, self.land_types)
                 if agent.is_alive and agent.gender == 'female' and agent.fertility > 0:
                     if len(household.members) < 5 or self.is_land_available():
                         new_agents.append(self.reproduce_agent(household, agent))
                     else:
-                        # print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
+                        print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
                         pass
         
         household.members.extend(new_agents)
@@ -243,12 +245,13 @@ class Village:
             household.produce_food(self, vec1)
             household.consume_food()
             self.migrate_household(household)
+            self.propose_marriage(household)
 
             dead_agents = []
             newborn_agents = []
 
             for agent in household.members:
-                agent.age_and_die()  
+                agent.age_and_die(self)  
 
                 if not agent.is_alive:
                     dead_agents.append(agent)
@@ -265,7 +268,7 @@ class Village:
                 household.extend(child)
             # print(f"Household {household.id} had {len(newborn_agents)} newborns.")
 
-            if len(household.members) > 10:
+            if len(household.members) > 5:
                 household.split_household(self)
 
             household.advance_step()
@@ -301,10 +304,15 @@ class Village:
                 land['occupied'] = False
                 land['household_id'] = None
                 # # print(f"Land at {location} remains unoccupied.")            
+            # new_quality = (
+            #             land_quality +
+            #             land_recovery_rate * (land_max_capacity - land_quality) -
+            #             farming_intensity * 0.4 * land_quality
+            #         )
             new_quality = (
                         land_quality +
                         land_recovery_rate * (land_max_capacity - land_quality) -
-                        farming_intensity * 0.1 * land_quality
+                        farming_intensity * land_quality
                     )
             land['quality'] = max(0, min(new_quality, land_max_capacity))
             # # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
@@ -324,6 +332,8 @@ class Village:
                     land_snapshot[loc]['household_id'] = household.id
                     land_snapshot[loc]['num_members'] = len(household.members)
         self.land_usage_over_time.append(land_snapshot)
+        self.population.append(sum(len(household.members) for household in self.households))
+        self.num_house.append(len(self.households))
     
 
 
@@ -346,7 +356,7 @@ class Village:
             image = Image.new('RGBA', (grid_dim * 100, grid_dim * 100), color=(255, 255, 255, 0))
             draw = ImageDraw.Draw(image)
 
-            for loc, land_data in year_data.items():
+            for (loc, land_data), p in zip(year_data.items(), self.population):
                 x, y = map(int, loc.split(','))
                 x *= 100
                 y *= 100
@@ -374,8 +384,8 @@ class Village:
                     text_y = max(y + 5, min(text_y, y + 90 - text_height))
                     
                     draw.text((text_x, text_y), text, fill=(0, 0, 0), font=font)
-            population = sum(len(household.members) for household in self.households)
-            draw.text((10, 10), f"Year: {year + 1}; {population}", fill=(0, 0, 0), font=font)
+            
+            draw.text((10, 10), f"Year: {year + 1}; Population: {self.population[year]}; # Houses: {self.num_house[year]}", fill=(0, 0, 0), font=font)
             return image
 
         animation_frames = []
@@ -445,3 +455,55 @@ class Village:
         plt.savefig(file_name)
         plt.show()
         plt.close()
+
+    
+    def get_agent_by_id(self, agent_id):
+        for household in self.households:
+            for agent in household.members:
+                if agent.id == agent_id:
+                    return agent
+        return None
+
+    def propose_marriage(self, household):
+        """Handle the marriage proposals and household merging."""
+        eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= 14 and agent.age <= 50 and agent.gender == 'female' and agent.marital_status == 'single']
+        
+        if not eligible_agents:
+            return
+        
+        for agent in eligible_agents:
+            potential_spouses = self.find_potential_spouses(agent)
+            agent_network = self.network[agent.household_id]
+            max_connect = 0
+            best_agent = None
+            if potential_spouses:
+                for potential in potential_spouses:
+                    mutual_connection = agent_network['connectivity'][potential.household_id]
+                    if mutual_connection > max_connect:
+                        max_connect = mutual_connection
+                        best_agent = potential
+                chosen_spouse = best_agent
+                agent.marry(chosen_spouse) # personal level info, id
+                self.marry_agents(agent, chosen_spouse)
+
+    def find_potential_spouses(self, agent):
+        """Find potential spouses for an agent from other households."""
+        potential_spouses = []
+        for household in self.households:
+            for member in household.members:
+                if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
+                    potential_spouses.append(member)
+        return potential_spouses
+    
+    def marry_agents(self, female_agent, male_agent):
+        """Handle the marriage process, ensuring the female moves to the male's household."""
+        female_agent.marry(male_agent)
+        old_household = self.get_household_by_id(female_agent.household_id)
+        new_household = self.get_household_by_id(male_agent.household_id)
+
+        # women move to men's household after marriage.
+        old_household.remove_member(female_agent)
+        new_household.extend(female_agent)
+        female_agent.household_id = new_household.id
+
+        print(f"Marriage: {female_agent.age} old (female) moved to {male_agent.age} old (male) household {new_household.id}.")

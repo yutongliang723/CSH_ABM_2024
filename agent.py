@@ -3,6 +3,8 @@ import scipy.special as sp
 import pandas as pd
 # from household import Household
 import household
+import itertools
+
 vec1 = pd.read_csv('demog_vectors.csv')
 
 class Vec1:
@@ -18,7 +20,9 @@ class Vec1:
         
 
 class Agent:
+    _id_iter = itertools.count(start = 1)
     def __init__(self, age, gender, household_id, vec1, fertility):
+        self.id = next(Agent._id_iter)
         self.age = age
         self.gender = gender
         self.household_id = household_id
@@ -26,6 +30,9 @@ class Agent:
         self.is_alive = True  
         self.newborn_agents = []
         self.fertility = fertility
+        self.marital_status = 'single'
+        self.partner_id = None
+        # self.children_ids = []
 
     def get_age_group_index(self):
         """Determine the age group index for the agent."""
@@ -40,9 +47,7 @@ class Agent:
             age_index = self.get_age_group_index()
             phi = self.vec1.phi[age_index]
             rho = self.vec1.rho[age_index]
-            # consumption_amount = phi * (self.calories_needed + self.proteins_needed + self.water_needed) * rho
             consumption_amount = rho * 10
-            # print(f"Agent {self.household_id} consumes {consumption_amount:.2f} units of resources.")
 
     def work(self):
         """Simulate work done by the agent based on effectiveness parameter."""
@@ -50,32 +55,27 @@ class Agent:
         if self.is_alive:
             age_index = self.get_age_group_index()
             phi = self.vec1.phi[age_index]
-            # work_output = phi * (self.calories_needed + self.proteins_needed)  # Example calculation
             work_output = phi 
-            # print(f"Agent {self.household_id} works and produces {work_output:.2f} units of output.")
             return work_output
         return work_output
-
-    def age_and_die(self):
+    
+    def age_and_die(self, village):
         from household import Household
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
             return
-        # avg_food_storage = household.food_storage / len(household.members)
-        # # print(avg_food_storage)
+
         self.age += 1
         p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, 1)
         m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, 1)
         
         age_index = self.get_age_group_index()
         survival_probability = p0[age_index]  # survival probability
-        # # print(age_index, survival_probability)
         if random.random() > survival_probability:
             self.is_alive = False
-            # print(f"Agent {self.household_id} has died at age {self.age}.")
-            # household = self.get_household()
-            # if household:
-            #     household.remove_member(self)
+            partner = village.get_agent_by_id(self.partner_id)
+            if partner:
+                partner.marital_status = 'single'
             return
         
         fertility_probability = m0[age_index]
@@ -83,7 +83,7 @@ class Agent:
         if random.random() < fertility_probability and self.gender == 'female':
             # print(f"Agent {self.household_id} reproduces at age {self.age}.")
             self.reproduce()
-
+    
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""
         new_agent = Agent(
@@ -96,3 +96,12 @@ class Agent:
         # print(f"Newborn Agent added to Household {self.household_id}.")
         self.newborn_agents.append(new_agent)
     
+    def marry(self, partner):
+        """Marry another agent."""
+        self.marital_status = 'married'
+        self.partner_id = partner.id
+        partner.marital_status = 'married'
+        partner.partner_id = self.id
+
+
+

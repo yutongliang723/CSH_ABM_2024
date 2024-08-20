@@ -5,8 +5,10 @@
 Added a animation gif showing land capacity change and migration;  
 Added migration logic and family splitting;  
 Initialized social network connectivity and added distance calculation;  
-Initialized luxury good exchanging with the village but not with families.  
-TODO: finish trading and implement marriage.  
+Implemented trading and marriages.  
+TODO: 
+- reciprocal social - getting free food from the public pool.
+- Debug/
 
 ### Usage Manual
 Run the main.py or can create a jupyter notebook and copy-paste the main.py code. If using jupyter notebook, restarting the kernal is sometimes required.
