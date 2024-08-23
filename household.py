@@ -1,5 +1,6 @@
 import random
 from agent import Agent
+import uuid
 # from village import Village
 class Household:
     def __init__(self, id, members, location, food_storage, luxury_good_storage):
@@ -12,6 +13,10 @@ class Household:
         self.current_step = 0
         self.food_expiration_steps = 3
         self.household_id = id
+    
+    def clean_up(self):
+        self.members.clear()  
+        self.location = None
     
     def add_food(self, amount):
         """Add food with the current step count."""
@@ -132,7 +137,7 @@ class Household:
 
             new_luxury_good_storage = self.luxury_good_storage // 2
             self.luxury_good_storage -= new_luxury_good_storage
-            new_household_id = f"{self.id}->"
+            new_household_id = str(uuid.uuid4())
             
             # Create the new household
             new_household = Household(
@@ -142,13 +147,13 @@ class Household:
                 members=new_household_members,
                 location = None
             )
-
+            for m in new_household.members:
+                m.id = new_household.id
             new_location = random.choice(empty_land_cells)
             village.land_types[new_location]['occupied'] = True
             village.land_types[new_location]['household_id'] = new_household.id
             new_household.location = new_location
 
-            # Add the new household to the village
             village.households.append(new_household)
 
             # Update the village network
@@ -158,7 +163,8 @@ class Household:
             }
 
             for other_household in village.households:
-                if other_household.location != new_household.location and other_household.id != new_household.id:
+                if other_household.id != new_household.id:
+                    # print(village.network)
                     distance = village.get_distance(new_household.location, other_household.location)
                     village.network[new_household.id]['connectivity'][other_household.id] = max(0, 1/distance)
                     village.network[other_household.id]['connectivity'][new_household.id] = max(0, 1/distance)
@@ -168,3 +174,4 @@ class Household:
         else:
             # print(f"No available land for splitting Household {self.id}. New household not created.")
             pass
+    

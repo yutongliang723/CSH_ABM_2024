@@ -47,23 +47,34 @@ class Village:
         self.luxury_goods_in_village = 50
 
 
-    def update_network_connectivity(self): 
+    def update_network_connectivity(self):
         """Updates connectivity based on trading and distance."""
-        for household_id, data in self.network.items():
+        valid_households = set(self.households)  # Precompute valid households
 
-            for other_id in self.network.keys():
-                id1 = self.get_household_by_id(household_id)
-                id2 = self.get_household_by_id(other_id)
-                if id1.location != id2.location:
-                    distance = self.get_distance(id1.location, id2.location)
-                    # print(other_id, type(other_id))
-                    # print(self.network[household_id]['connectivity'])
-                    self.network[household_id]['connectivity'][other_id] = max(0, 1/distance)
+        # Iterate over a copy of the network dictionary to avoid modifying it while iterating
+        for household_id in list(self.network.keys()):
+            if household_id in valid_households:
+                self.network[household.id]['luxury_goods'] = household.luxury_good_storage
+                household = self.get_household_by_id(household_id)
+                connectivity = self.network[household_id]['connectivity']
+
+                for other_id in list(connectivity.keys()):
+                    if other_id in valid_households:
+                        other_household = self.get_household_by_id(other_id)
+                        if household.location != other_household.location:
+                            distance = self.get_distance(household.location, other_household.location)
+                            connectivity[other_id] = max(0, 1 / distance)
+                    else:
+                        # Remove invalid connections
+                        # connectivity.pop(other_id)
+                        pass
+            else:
+                # Remove households that are no longer valid
+                # self.network.pop(household_id)
+                pass
 
                     
-        for household in self.households:
-            self.network[household.id]['luxury_goods'] = household.luxury_good_storage
-
+        
     def manage_luxury_goods(self):
         for household in self.households:
             # food_storage_needed = household.calculate_food_need()
@@ -87,13 +98,14 @@ class Village:
             
                 self.spare_food.append((max_luxury_goods, self.time))
                 print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
-        self.luxury_goods_in_village += 1 
+        # self.luxury_goods_in_village += 1 
         # food should still be usable after trading. # pair family with the links
         # 1. check who want to trade; 2. check connectivity. 
         # similar to marriages. women married or not. widowed
         # marriage status, marriage partner. do the widowed one marry again?
         # make marriage func flexible.
         # agent moving to another house.
+        
         self.update_spare_food_expiration()
     
     def update_spare_food_expiration(self):
@@ -193,31 +205,31 @@ class Village:
                 self.land_types[household.location]['occupied'] = False
                 household.location = best_land[0]
                 self.land_types[household.location]['occupied'] = True
-                print(f"Household {household.id} migrated to {household.location}.")
+                # print(f"Household {household.id} migrated to {household.location}.")
 
     def get_distance(self, location1, location2):
         x1, y1 = map(int, location1.split(','))
         x2, y2 = map(int, location2.split(','))
         return abs(x1 - x2) + abs(y1 - y2)
     
-    def update_household(self, household):
-        """Update the household status, including reproduction and splitting."""
-        new_agents = []
+    # def update_household(self, household):
+    #     """Update the household status, including reproduction and splitting."""
+    #     new_agents = []
 
-        for agent in household.members:
-            if agent.is_alive:
-                agent.age_and_die(self, self.land_types)
-                if agent.is_alive and agent.gender == 'female' and agent.fertility > 0:
-                    if len(household.members) < 5 or self.is_land_available():
-                        new_agents.append(self.reproduce_agent(household, agent))
-                    else:
-                        print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
-                        pass
+    #     for agent in household.members:
+    #         if agent.is_alive:
+    #             agent.age_and_die(self, self.land_types)
+    #             if agent.is_alive and agent.gender == 'female' and agent.fertility > 0:
+    #                 if len(household.members) < 5 or self.is_land_available():
+    #                     new_agents.append(self.reproduce_agent(household, agent))
+    #                 else:
+    #                     print(f"Agent {agent.household_id} cannot reproduce due to lack of available land.")
+    #                     pass
         
-        household.members.extend(new_agents)
+    #     household.members.extend(new_agents)
 
-        if len(household.members) > 5 and self.is_land_available(): # shouldn't pass till this line
-            self.split_household(household)
+    #     if len(household.members) > 5 and self.is_land_available(): # shouldn't pass till this line
+    #         self.split_household(household)
 
     def is_land_available(self):
         return any(not data['occupied'] for data in self.land_types.values())
@@ -233,25 +245,40 @@ class Village:
         # print(f"New agent born in Household {household.id}.")
         return new_agent
 
+    def remove_empty_household(self, household):
+        if household in self.households:
+            if len(household.members) == 0:
+                # print('check check', [member.id for member in household.members])
+                self.land_types[household.location]['occupied'] = False
+                self.households.remove(household)
+                # for agent in household.members:
+                #     agent.household = None
+                # household.clean_up()
+        else:
+            pass
 
     def run_simulation_step(self, vec1):
         
         """Run a single simulation step (year)."""
-        self.time += 1
-        self.update_network_connectivity()
+        
+        
         print(f"\nSimulation Year {self.time}")
         # print(self.land_types)
         for household in self.households:
             household.produce_food(self, vec1)
             household.consume_food()
+            self.remove_empty_household(household)
             self.migrate_household(household)
-            self.propose_marriage(household)
+            self.propose_marriage(household) # if choose to comment out this line, please also comment out 
+            
+            # if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
+            # if random.random() < fertility_probability and self.gender == 'female' in agent.py
 
             dead_agents = []
             newborn_agents = []
 
             for agent in household.members:
-                agent.age_and_die(self)  
+                agent.age_and_die(household,self)  
 
                 if not agent.is_alive:
                     dead_agents.append(agent)
@@ -270,15 +297,16 @@ class Village:
 
             if len(household.members) > 5:
                 household.split_household(self)
-
+            self.remove_empty_household(household)
             household.advance_step()
-        
+            
         self.update_tracking_variables()
         self.track_land_usage()
         self.update_land_capacity()        
         self.manage_luxury_goods()
         self.trading()
-        
+        self.update_network_connectivity()
+        self.time += 1
        
     
     def update_land_capacity(self):
@@ -467,12 +495,12 @@ class Village:
     def propose_marriage(self, household):
         """Handle the marriage proposals and household merging."""
         eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= 14 and agent.age <= 50 and agent.gender == 'female' and agent.marital_status == 'single']
-        
         if not eligible_agents:
             return
         
         for agent in eligible_agents:
             potential_spouses = self.find_potential_spouses(agent)
+            household_id = agent.household_id
             agent_network = self.network[agent.household_id]
             max_connect = 0
             best_agent = None
@@ -498,8 +526,15 @@ class Village:
     def marry_agents(self, female_agent, male_agent):
         """Handle the marriage process, ensuring the female moves to the male's household."""
         female_agent.marry(male_agent)
+        print('female_agent.household_id', female_agent.household_id)
+        print('male_agent.household_id', male_agent.household_id)
+
         old_household = self.get_household_by_id(female_agent.household_id)
         new_household = self.get_household_by_id(male_agent.household_id)
+        print(male_agent.age)
+        print('check', male_agent.household_id)
+        # print(new_household.id)
+        # print(new_household.members)
 
         # women move to men's household after marriage.
         old_household.remove_member(female_agent)
@@ -507,3 +542,5 @@ class Village:
         female_agent.household_id = new_household.id
 
         print(f"Marriage: {female_agent.age} old (female) moved to {male_agent.age} old (male) household {new_household.id}.")
+    
+   

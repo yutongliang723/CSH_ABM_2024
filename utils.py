@@ -5,13 +5,13 @@ from village import Village
 from agent import Vec1
 import scipy.special as sp
 import math
-
+import uuid
 
 def generate_random_agent(household_id, vec1):
 
     """Generate a random agent with basic attributes."""
     m0 = vec1.mstar * sp.gdtr(1.0 / vec1.fertscale, vec1.fertparm, 1)
-    age = random.randint(1, 30)
+    age = random.randint(1, 20)
     gender = random.choice(['male', 'female'])
     fertility = m0[age]
     return Agent(age, gender, household_id, vec1, fertility)
@@ -19,7 +19,8 @@ def generate_random_agent(household_id, vec1):
 def generate_random_household(id, num_members, location, vec1):
     """Generate a random household with a specified number of agents."""
     members = [generate_random_agent(id, vec1) for _ in range(num_members)]
-    food_storage = random.randint(1, 10)
+    # food_storage = random.randint(1, 10)
+    food_storage = 5
     luxury_good_storage = 0
     # food_storage = 0
     return Household(id, members, location, food_storage, luxury_good_storage)
@@ -30,11 +31,17 @@ def generate_random_village(num_households, num_land_cells, vec1):
     land_types = {}
     for i in range(num_land_cells):
         location = f'{i // grid_size},{i % grid_size}'
+        # land_types[location] = {
+        #     'quality': random.uniform(1,2),
+        #     'occupied': False,
+        #     'max_capacity': random.uniform(8, 10),
+        #     'recovery_rate': random.uniform(0.05, 0.7)
+        # }
         land_types[location] = {
-            'quality': random.uniform(1,2),
+            'quality': 5,
             'occupied': False,
-            'max_capacity': random.uniform(5, 10),
-            'recovery_rate': random.uniform(0.05, 0.1)
+            'max_capacity': 10,
+            'recovery_rate': 0.03
         }
 
     households = []

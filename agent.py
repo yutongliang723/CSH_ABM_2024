@@ -59,12 +59,12 @@ class Agent:
             return work_output
         return work_output
     
-    def age_and_die(self, village):
-        from household import Household
+    def age_and_die(self, household, village):
+
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
             return
-
+        
         self.age += 1
         p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, 1)
         m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, 1)
@@ -76,13 +76,16 @@ class Agent:
             partner = village.get_agent_by_id(self.partner_id)
             if partner:
                 partner.marital_status = 'single'
+                # partner.partner_id = None
             return
         
         fertility_probability = m0[age_index]
         self.fertility = fertility_probability
-        if random.random() < fertility_probability and self.gender == 'female':
+        if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
+            if len(household.members) < 5 or village.is_land_available():
+        # if random.random() < fertility_probability and self.gender == 'female':
             # print(f"Agent {self.household_id} reproduces at age {self.age}.")
-            self.reproduce()
+                self.reproduce()
     
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""
