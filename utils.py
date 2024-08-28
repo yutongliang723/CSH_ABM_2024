@@ -6,7 +6,7 @@ from agent import Vec1
 import scipy.special as sp
 import math
 import uuid
-
+idh_count = 0
 def generate_random_agent(household_id, vec1):
 
     """Generate a random agent with basic attributes."""
@@ -16,14 +16,16 @@ def generate_random_agent(household_id, vec1):
     fertility = m0[age]
     return Agent(age, gender, household_id, vec1, fertility)
 
-def generate_random_household(id, num_members, location, vec1):
+def generate_random_household(num_members, location, vec1):
     """Generate a random household with a specified number of agents."""
-    members = [generate_random_agent(id, vec1) for _ in range(num_members)]
     # food_storage = random.randint(1, 10)
     food_storage = 5
     luxury_good_storage = 0
     # food_storage = 0
-    return Household(id, members, location, food_storage, luxury_good_storage)
+    new_household = Household([], location, food_storage, luxury_good_storage)
+    new_household.members = [generate_random_agent(new_household.id, vec1) for _ in range(num_members)]
+    
+    return new_household
 
 def generate_random_village(num_households, num_land_cells, vec1):
     """Generate a village with a specified number of households and land cells."""
@@ -31,12 +33,7 @@ def generate_random_village(num_households, num_land_cells, vec1):
     land_types = {}
     for i in range(num_land_cells):
         location = f'{i // grid_size},{i % grid_size}'
-        # land_types[location] = {
-        #     'quality': random.uniform(1,2),
-        #     'occupied': False,
-        #     'max_capacity': random.uniform(8, 10),
-        #     'recovery_rate': random.uniform(0.05, 0.7)
-        # }
+
         land_types[location] = {
             'quality': 5,
             'occupied': False,
@@ -50,7 +47,8 @@ def generate_random_village(num_households, num_land_cells, vec1):
         while land_types[location]['occupied']:
             location = random.choice(list(land_types.keys()))
         land_types[location]['occupied'] = True
-        household = generate_random_household(i, random.randint(1, 6), location, vec1)
+        household = generate_random_household(# next(Household._id_iter),
+            random.randint(1, 6), location, vec1)
         households.append(household)
 
     return Village(households, land_types)

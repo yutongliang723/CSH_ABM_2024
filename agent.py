@@ -66,8 +66,14 @@ class Agent:
             return
         
         self.age += 1
-        p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, 1)
-        m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, 1)
+        # Get z
+        
+        total_food = sum(i for (i, j) in household.food_storage)
+        personal_portion = self.age/sum(agent.age for agent in household.members)
+        z = personal_portion/total_food
+
+        p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, z)
+        m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z)
         
         age_index = self.get_age_group_index()
         survival_probability = p0[age_index]  # survival probability
@@ -96,7 +102,7 @@ class Agent:
         vec1=self.vec1,
         fertility = 0
         )
-        # print(f"Newborn Agent added to Household {self.household_id}.")
+        print(f"Newborn Agent added to Household {self.household_id}.")
         self.newborn_agents.append(new_agent)
     
     def marry(self, partner):
