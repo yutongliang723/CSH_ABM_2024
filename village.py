@@ -379,18 +379,22 @@ class Village:
             total_food_needed = sum(agent.vec1.rho[agent.get_age_group_index()] for
             	agent in household.members)
 
+            z = total_food * total_food_needed
+
+            """ Take spare food for the poor""" # can comment out if not needed.
+            if z < 0.5 and len(self.spare_food) != 0:
+                food_need = len(household.members)
+                amount_get = self.reduce_food_from_village(household, food_need)
+                household.add_food(amount_get)
+                total_food += amount_get
+                # z = total_food * total_food_needed
+                print(f"Household {household.id} get {amount_get} from the Village.")
+            """ Take spare food for the poor"""
+
             for agent in household.members:
                 agent_food_needed= agent.vec1.rho[agent.get_age_group_index()]
                 z = total_food * agent_food_needed / total_food_needed
                 
-                """ Take spare food for the poor""" # can comment out if not needed.
-                if z < 0.5 and len(self.spare_food) != 0:
-                    food_need = len(household.members)
-                    amount_get = self.reduce_food_from_village(household, food_need)
-
-                    print(f"Household {household.id} get {amount_get} from the Village.")
-                """ Take spare food for the poor"""
-
                 agent.age_and_die(household, self, z)
                 
                 if not agent.is_alive:
@@ -642,12 +646,16 @@ class Village:
             
             max_connect = 0
             best_agent = None # solve here
+            richest_asset = 0
             if potential_spouses:
                 for potential in potential_spouses:
-                    print('potential.household_id', potential.household_id)
+                    potential_household = self.get_household_by_id(potential.household_id)
+                    potential_asset = potential_household.get_total_food()
+                    # print('potential.household_id', potential.household_id)
                     mutual_connection = agent_network['connectivity'][potential.household_id]
-                    if mutual_connection > max_connect:
+                    if mutual_connection > max_connect and potential_asset > richest_asset:
                         max_connect = mutual_connection
+                        richest_asset = potential_asset
                         best_agent = potential
                 if best_agent:
                     chosen_spouse = best_agent

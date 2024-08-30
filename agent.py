@@ -75,9 +75,9 @@ class Agent:
         # z = person_share / person_need
 
         # print(f'Z value {z}; person pocess {person_share}; personal need: {person_need}')
-        # z = 1
+        z = 1
         age_index = self.get_age_group_index()
-        print(self.vec1.fertparm)
+        
         survival_probability = self.vec1.pstar[age_index] * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms[age_index], z)
         fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z)
         
@@ -118,5 +118,8 @@ class Agent:
         partner.marital_status = 'married'
         partner.partner_id = self.id
 
-
+    def bride_price_need(self):
+        agent_house = household.get_household_by_id(self.household_id)
+        agent_house_num = len(agent_house.members)
+        
 

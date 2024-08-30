@@ -115,47 +115,47 @@ class Household:
         
         if empty_land_cells:
             new_household_members_ids = set()
-            self.members.sort(key=lambda x: x.age)
-
+            # self.members.sort(key=lambda x: x.age)
+            random.shuffle(self.members)
             # order = {"single": 0, "married": 1}
             # self.members.sort(key=lambda x: order.get(x.marital_status, 2)) 
+            # TODO: can pick randomly
 
             members_to_leave = len(self.members)
             mixed_members = []
 
-            i, j = 0, len(self.members) - 1
-            while i <= j and len(mixed_members) < members_to_leave:
-                if i < len(self.members):
-                    mixed_members.append(self.members[i])  # Youngest
-                    i += 1
-                if j >= 0 and len(mixed_members) < members_to_leave:
-                    mixed_members.append(self.members[j])  # Oldest
-                    j -= 1
+            # i, j = 0, len(self.members) - 1
+            # while i <= j and len(mixed_members) < members_to_leave:
+            #     if i < len(self.members):
+            #         mixed_members.append(self.members[i])  
+            #         i += 1
+            #     if j >= 0 and len(mixed_members) < members_to_leave:
+            #         mixed_members.append(self.members[j])  
+            #         j -= 1
 
-            count = 0
+            
 
-            for agent in mixed_members:
-                if count < members_to_leave:
-                    if agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
-                        # Move the partner along with the agent
-                        partner = next((m for m in self.members if m.id == agent.partner_id), None)
-                        if partner:
-                            new_household_members_ids.add(partner.id)
-                            count += 1
+            # for agent in mixed_members:
+            #     if count < members_to_leave:
+            #         if agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
+            #             partner = next((m for m in self.members if m.id == agent.partner_id), None)
+            #             if partner:
+            #                 new_household_members_ids.add(partner.id)
+            #                 count += 1
                     
-                    new_household_members_ids.add(agent.id)
-                    count += 1
-
-            # for agent in self.members:
-            #     if count < members_to_leave and agent.marital_status == 'single':
             #         new_household_members_ids.add(agent.id)
             #         count += 1
+            count = 0
+            for agent in self.members:
+                if count < members_to_leave and agent.marital_status == 'single':
+                    new_household_members_ids.add(agent.id)
+                    count += 1
                     
-            #     if count < members_to_leave and agent.marital_status == 'married':
-            #         # print('add members ({}, {})'.format(agent.id, agent.partner_id))
-            #         new_household_members_ids.add(agent.id)
-            #         new_household_members_ids.add(agent.partner_id)
-            #         count += 2 
+                if count < members_to_leave and agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
+                    # print('add members ({}, {})'.format(agent.id, agent.partner_id))
+                    new_household_members_ids.add(agent.id)
+                    new_household_members_ids.add(agent.partner_id)
+                    count += 2 
 
             new_household_members = []
             for member in self.members:
@@ -231,3 +231,8 @@ class Household:
     
     def get_total_food(self):
         return sum(amount for amount, _ in self.food_storage)
+    
+    def get_total_asset(self):
+        total_food = self.get_total_food()
+        total_luxury = self.luxury_good_storage
+        return total_food + total_luxury

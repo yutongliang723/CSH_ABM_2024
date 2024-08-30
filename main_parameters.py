@@ -7,9 +7,6 @@ import utils
 import random
 import sys
 random.seed(10)
-# args = sys.argv
-# if len(args) > 1:
-#     random.seed(int(args[1]))
 
 num_house = 10
 vec1_instance = Vec1()
@@ -18,7 +15,7 @@ village.initialize_network()
 village.initialize_network_relationship()
 for _ in range(300): 
     village.run_simulation_step(vec1_instance)
-    utils.print_village_summary(village)
+    # utils.print_village_summary(village)
 # print(village.network)
-village.plot_simulation_results(file_name = 'Plot.png')
+# village.plot_simulation_results(file_name = 'Plot.png')
 # village.generate_animation(grid_dim=5)
