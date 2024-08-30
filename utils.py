@@ -6,7 +6,7 @@ from agent import Vec1
 import scipy.special as sp
 import math
 import uuid
-idh_count = 0
+# idh_count = 0
 def generate_random_agent(household_id, vec1):
 
     """Generate a random agent with basic attributes."""
@@ -19,7 +19,7 @@ def generate_random_agent(household_id, vec1):
 def generate_random_household(num_members, location, vec1):
     """Generate a random household with a specified number of agents."""
     # food_storage = random.randint(1, 10)
-    food_storage = 5
+    food_storage = num_members
     luxury_good_storage = 0
     # food_storage = 0
     new_household = Household([], location, food_storage, luxury_good_storage)
@@ -32,8 +32,8 @@ def generate_random_village(num_households, num_land_cells, vec1):
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}
     for i in range(num_land_cells):
-        location = f'{i // grid_size},{i % grid_size}'
-
+        # location = f'{i // grid_size},{i % grid_size}'
+        location = (i // grid_size, i % grid_size)
         land_types[location] = {
             'quality': 5,
             'occupied': False,
@@ -48,7 +48,7 @@ def generate_random_village(num_households, num_land_cells, vec1):
             location = random.choice(list(land_types.keys()))
         land_types[location]['occupied'] = True
         household = generate_random_household(# next(Household._id_iter),
-            random.randint(1, 6), location, vec1)
+            random.randint(5, 10), location, vec1)
         households.append(household)
 
     return Village(households, land_types)
@@ -61,7 +61,9 @@ def print_village_summary(village):
         land = village.land_types[household.location]
         land_quality = land['quality']
         print(f"Household ID: {household.id}, Location: {household.location}, Land Quality: {land_quality}")
-        # print(f"  Food Storage: {household.food_storage}, Luxury Good Storage: {household.luxury_good_storage}")
+        food = sum(amount for amount, _ in household.food_storage)
+        need = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
+        print(f"  Food Storage: {food}, Luxury Good Storage: {household.luxury_good_storage}, Needs: {need}")
         # print(f"Household ID: {household.members}, Location: {household.location}, Land Quality: {household.land_quality}")
         
         if household.members:
@@ -71,3 +73,6 @@ def print_village_summary(village):
                 print(f"    Agent - Age: {member.age}, Gender: {member.gender}, Alive: {member.is_alive}, Fertility Prob: {member.fertility}， Marital Status: {member.marital_status}")
         else:
             print(f"  No members in this household.")
+
+
+

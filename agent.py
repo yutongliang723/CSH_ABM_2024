@@ -41,13 +41,13 @@ class Agent:
             return len(self.vec1.phi) - 1
         return self.age
 
-    def consume_resources(self):
-        """Simulate resource consumption based on effectiveness and consumption parameters."""
-        if self.is_alive:
-            age_index = self.get_age_group_index()
-            phi = self.vec1.phi[age_index]
-            rho = self.vec1.rho[age_index]
-            consumption_amount = rho * 10
+    # def consume_resources(self):
+    #     """Simulate resource consumption based on effectiveness and consumption parameters."""
+    #     if self.is_alive:
+    #         age_index = self.get_age_group_index()
+    #         phi = self.vec1.phi[age_index]
+    #         rho = self.vec1.rho[age_index]
+    #         consumption_amount = rho * 10
 
     def work(self):
         """Simulate work done by the agent based on effectiveness parameter."""
@@ -55,11 +55,11 @@ class Agent:
         if self.is_alive:
             age_index = self.get_age_group_index()
             phi = self.vec1.phi[age_index]
-            work_output = phi 
+            work_output = phi * 5
             return work_output
         return work_output
     
-    def age_and_die(self, household, village):
+    def age_and_die(self, household, village, z):
 
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
@@ -68,15 +68,21 @@ class Agent:
         self.age += 1
         # Get z
         
-        total_food = sum(i for (i, j) in household.food_storage)
-        personal_portion = self.age/sum(agent.age for agent in household.members)
-        z = personal_portion/total_food
+        # total_food = sum(i for (i, j) in household.food_storage)
+        # personal_portion = self.age/sum(agent.age for agent in household.members)
+        # person_share = personal_portion/total_food
+        # person_need = self.vec1.rho[self.get_age_group_index()] 
+        # z = person_share / person_need
 
-        p0 = self.vec1.pstar * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms, z)
-        m0 = self.vec1.mstar * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z)
-        
+        # print(f'Z value {z}; person pocess {person_share}; personal need: {person_need}')
+        # z = 1
         age_index = self.get_age_group_index()
-        survival_probability = p0[age_index]  # survival probability
+        print(self.vec1.fertparm)
+        survival_probability = self.vec1.pstar[age_index] * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms[age_index], z)
+        fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z)
+        
+        # survival_probability = p0[age_index]  # survival probability
+
         if random.random() > survival_probability:
             self.is_alive = False
             partner = village.get_agent_by_id(self.partner_id)
@@ -85,7 +91,7 @@ class Agent:
                 # partner.partner_id = None
             return
         
-        fertility_probability = m0[age_index]
+        # fertility_probability = m0[age_index]
         self.fertility = fertility_probability
         if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
             if len(household.members) < 5 or village.is_land_available():
