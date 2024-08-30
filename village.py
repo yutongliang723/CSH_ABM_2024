@@ -659,22 +659,33 @@ class Village:
         """Find potential spouses for an agent from other households."""
         potential_spouses = []
         for household in self.households:
-            for member in household.members:
-                if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
-                    print(agent.household_id == member.household_id)
-                    print(agent.household_id, member.household_id)
-                    potential_spouses.append(member)
+            if household.get_total_food() > 100: # need to be able to pay bride price
+                for member in household.members:
+                    if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
+                        print(agent.household_id == member.household_id)
+                        print(agent.household_id, member.household_id)
+                        potential_spouses.append(member)
         return potential_spouses
     
     def marry_agents(self, female_agent, male_agent):
         """Handle the marriage process, ensuring the female moves to the male's household."""
         old_household = self.get_household_by_id(female_agent.household_id)
-        print('old house female', old_household)
         female_agent.marry(male_agent)
-        print('female', female_agent.age)
-        
-        print(old_household)
+        bride_price = 100
+        price_to_pay = bride_price 
         new_household = self.get_household_by_id(male_agent.household_id)
+        while price_to_pay > 0 and new_household.food_storage: 
+            amount, age_added = new_household.food_storage[0]
+            if price_to_pay <= amount:
+                new_household.food_storage[0] = (amount - price_to_pay, age_added)
+                price_to_pay = 0
+            else:
+                new_household.food_storage.pop(0)
+                price_to_pay -= amount
+        
+        
+        
+        old_household.add_food(bride_price - price_to_pay)
         # women move to men's household after marriage.
         new_household.extend(female_agent)
         old_household.remove_member(female_agent)

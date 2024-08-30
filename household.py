@@ -228,3 +228,6 @@ class Household:
                 self.food_storage.pop(0)
                 still_need -= amount
         village.add_food_village(food_amount - still_need)
+    
+    def get_total_food(self):
+        return sum(amount for amount, _ in self.food_storage)
