@@ -23,6 +23,7 @@ class Village:
         self.food_storage_over_time = []
         self.land_usage_over_time = []
         self.average_fertility_over_time = []
+        self.average_life_span = []
         self.network = {}
         self.network_relation = {}
         self.spare_food = []
@@ -31,6 +32,8 @@ class Village:
         self.population = []
         self.num_house = []
         self.average_age = []
+        self.gini_coefficients = []
+        self.networks = []
 
     def initialize_network(self):
         
@@ -63,11 +66,10 @@ class Village:
                 if household.id != other_household.id:
                     self.network_relation[household.id]['connectivity'][other_household.id] = 0
     
-
+    
 
     def combined_network(self):
         result = {}
-        # print(self.network)
         for key in self.network.keys():
             merged_conn = {}
 
@@ -80,14 +82,15 @@ class Village:
                         merged_conn[id_key] += value  
                     else:
                         merged_conn[id_key] = value  
-            result[key] = {'connectivity': merged_conn}
+            household = self.get_household_by_id(key)
+            result[key] = {'connectivity': merged_conn, 'num_member': len(household.members)}
 
         return result
 
     def update_network_connectivity(self):
         """Updates connectivity based on trading and distance."""
         valid_households = [household.id for household in self.households]
-        print(self.network)
+        # print(self.network)
 
         for household_id in list(self.network.keys()):
             if household_id in valid_households:
@@ -145,7 +148,7 @@ class Village:
     
     def update_spare_food_expiration(self):
         current_time = self.time  
-        print('food in the loop check', self.spare_food)
+        # print('food in the loop check', self.spare_food)
         self.spare_food = [(amount, age_added) for amount, age_added in self.spare_food if current_time - age_added < self.food_expiration_steps]
 
     def trading(self):
@@ -159,12 +162,12 @@ class Village:
             
             if total_available_food > 2 * food_needed and self.luxury_goods_in_village == 0: 
                 """ Too much food - Wants to trade for luxury goods"""
-                # print(f"Quality to get more luxury {household.id}")
+                print(f"Qualify to get more luxury {household.id}")
                 food_for_luxury.append(household)
-            elif total_available_food < 1.5 * food_needed and household.luxury_good_storage > 0:
+            if total_available_food < 50 * food_needed and household.luxury_good_storage > 0:
                 """ Not enough food - Wants to trade for food """
                 luxury_for_food.append(household)
-                # print(f"Quality to get more food {household.id}")
+                print(f"Qualify to get more food {household.id}")
             # elif total_available_food < 1.5 * food_needed and household.luxury_good_storage == 0:
             #     charity.append(household)
             # this has been moved to run_simulation_step func
@@ -230,7 +233,7 @@ class Village:
         land_quality = self.land_types[household.location]['quality']
         total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-        if total_food_storage < 1.5 * total_food_needed and land_quality < 1:
+        if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
             print(f'Poor - Migration qualify for {household.id}')
             if empty_land_cells:
                 print("There are empty land to migrate")
@@ -239,6 +242,17 @@ class Village:
                 self.land_types[household.location]['occupied'] = False
                 household.location = best_land[0]
                 self.land_types[household.location]['occupied'] = True
+                migrate_cost = sum(amount for amount, _ in household.food_storage) * 0.2
+                """ Pay for the migration """
+                still_pay = migrate_cost
+                while still_pay > 0 and household.food_storage:
+                    amount, age_added = household.food_storage[0]
+                    if amount > still_pay:
+                        household.food_storage[0] = (amount - still_pay, age_added)
+                        still_pay = 0
+                    else:
+                        household.food_storage.pop(0)
+                        still_pay -= amount
                 print(f"Household {household.id} migrated to {household.location}.")
 
     def get_distance(self, location1, location2):
@@ -369,6 +383,7 @@ class Village:
         print(f"\nSimulation Year {self.time}")
         # print(self.land_types)
         self.update_network_connectivity()
+        longevities = []
         for household in self.households:
             household.produce_food(self, vec1)
             
@@ -379,22 +394,24 @@ class Village:
             total_food_needed = sum(agent.vec1.rho[agent.get_age_group_index()] for
             	agent in household.members)
 
-            z = total_food * total_food_needed
+            # z = total_food * total_food_needed
 
             """ Take spare food for the poor""" # can comment out if not needed.
-            if z < 0.5 and len(self.spare_food) != 0:
-                food_need = len(household.members)
-                amount_get = self.reduce_food_from_village(household, food_need)
-                household.add_food(amount_get)
-                total_food += amount_get
-                # z = total_food * total_food_needed
-                print(f"Household {household.id} get {amount_get} from the Village.")
+            # # if z < 0.5 and len(self.spare_food) != 0:
+            # #     food_need = len(household.members)
+            # if total_food < total_food_needed and len(self.spare_food) != 0:
+            #     food_need = total_food_needed - total_food
+            #     amount_get = self.reduce_food_from_village(household, food_need)
+            #     household.add_food(amount_get)
+            #     total_food += amount_get
+            #     # z = total_food * total_food_needed
+            #     print(f"Household {household.id} get {amount_get} from the Village.")
             """ Take spare food for the poor"""
 
             for agent in household.members:
-                agent_food_needed= agent.vec1.rho[agent.get_age_group_index()]
+                # agent_food_needed= agent.vec1.rho[agent.get_age_group_index()]
+                agent_food_needed = agent.vec1.rho[agent.get_age_group_index()]
                 z = total_food * agent_food_needed / total_food_needed
-                
                 agent.age_and_die(household, self, z)
                 
                 if not agent.is_alive:
@@ -403,17 +420,27 @@ class Village:
                     if agent.newborn_agents:
                         newborn_agents.extend(agent.newborn_agents)
                         agent.newborn_agents = []
-
+            
             for agent in dead_agents:
+                longevities.append(agent.age)
                 household.remove_member(agent)
+            
             print(f"Household {household.id} had {len(dead_agents)} members die.")
 
             for child in newborn_agents:
                 household.extend(child)
             print(f"Household {household.id} had {len(newborn_agents)} newborns.")
-
-            household.consume_food()
+        
+            # household.consume_food()
+            household.consume_food(total_food_needed)
             self.remove_empty_household(household)
+        
+        if longevities:
+            self.average_life_span.append(sum(longevities)/len(longevities))
+        else:
+            self.average_life_span.append(self.average_life_span[-1])
+
+        for household in self.households:
             self.migrate_household(household)
             self.propose_marriage(household) # if choose to comment out this line, please also comment out 
 
@@ -427,9 +454,11 @@ class Village:
         self.update_land_capacity()        
         self.manage_luxury_goods()
         self.trading()
+
         self.update_network_connectivity()
         self.time += 1
-       
+        self.luxury_goods_in_village += 5
+        
     
     def update_land_capacity(self):
         """Update the land quality for each land cell in the village."""
@@ -561,6 +590,11 @@ class Village:
         population = sum(len(household.members) for household in self.households)
         land_capcity_all = sum(self.land_types[key]['quality'] for key in self.land_types)
         land_capacity = sum(self.land_types[key]['quality'] for key in self.land_types if self.land_types[key]['occupied'] == True)
+        amount_used = len([self.land_types[key]['quality'] for key in self.land_types if self.land_types[key]['occupied'] == True])
+        # print('Amount Lands Occupied', amount_used)
+        # print('Amout of Households', len(self.households))
+        if amount_used != len(self.households):
+            raise BaseException('Inconsistent land usage ({}, {})!\n'.format(amount_used, len(self.households)))
         total_food = sum(
         sum(amount for amount, _ in household.food_storage)  # Sum the amounts in each tuple
         for household in self.households)
@@ -569,6 +603,8 @@ class Village:
         self.land_capacity_over_time.append(land_capacity)
         self.food_storage_over_time.append(total_food)
         self.land_capacity_over_time_all.append(land_capcity_all)
+        self.track_inequality_over_time()
+        self.networks.append(self.combined_network())
         house_num = sum(len(household.members) for household in self.households)
         if house_num != 0:
             self.average_fertility_over_time.append(
@@ -581,45 +617,158 @@ class Village:
 
 
     def plot_simulation_results(self, file_name):
-        plt.figure(figsize=(14, 16))
-        plt.subplot(5, 1, 1)
+        plt.figure(figsize=(12, 8))
+        plt.plot(self.gini_coefficients)
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Gini Coefficient', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.title('Inequality Over Time', size = 20)
+        # plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig('gini_overtime')
+        plt.show()
+        plt.close()
+        
+        plt.figure(figsize=(18, 12))
 
+        # Plot 1: Population over time
+        plt.subplot(2, 3, 1)
         plt.plot(self.population_over_time, label='Population')
-        plt.xlabel('Time Step')
-        plt.ylabel('Population')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Population', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
         plt.legend()
+        plt.title('Population Over Time',size = 20)
 
-        plt.subplot(5, 1, 2)
+        # Plot 2: Land Capacity over time
+        plt.subplot(2, 3, 2)
         plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
-        plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--') 
-        plt.xlabel('Time Step')
-        plt.ylabel('Land Capacity')
-        plt.legend()
+        plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Land Capacity', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Land Capacity Over Time', size = 20)
 
-        plt.subplot(5, 1, 3)
+        # Plot 3: Food Storage over time
+        plt.subplot(2, 3, 3)
         plt.plot(self.food_storage_over_time, label='Food Storage')
-        plt.xlabel('Time Step')
-        plt.ylabel('Food Storage')
-        plt.legend()
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Food Storage', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Food Storage Over Time', size = 20)
 
-        plt.subplot(5, 1, 4)
+        # Plot 4: Average Fertility over time
+        plt.subplot(2, 3, 4)
         plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
-        plt.xlabel('Time Step')
-        plt.ylabel('Average Household Fertility')
-        plt.legend()
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Average Household Fertility', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Average Fertility Over Time', size = 20)
 
-        plt.subplot(5, 1, 5)
+        # Plot 5: Average Age over time
+        plt.subplot(2, 3, 5)
         plt.plot(self.average_age, label='Avg. Age')
-        plt.xlabel('Time Step')
-        plt.ylabel('Average Age')
-        plt.legend()
+        plt.xlabel('Time Step',size = 20)
+        plt.ylabel('Average Age', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Average Age Over Time', size = 20)
+
+        # Plot 6: Average Life Span over time
+        plt.subplot(2, 3, 6)
+        plt.plot(self.average_life_span, label='Avg. Life Span')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Average Life Span', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Average Life Span Over Time', size = 20)
 
         plt.tight_layout()
         plt.savefig(file_name)
         plt.show()
         plt.close()
+        # with open(f'networks{self.time}.txt', 'w') as output:
+        #     output.write(str(self.networks))
+        
+    # def plot_simulation_results(self, file_name):
+    #     # Population over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.population_over_time, label='Population')
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Population')
+    #     plt.legend()
+    #     plt.title('Population Over Time')
+    #     plt.savefig(f"{file_name}_population.png")
+    #     plt.show()
+    #     plt.close()
 
-    
+    #     # Occupied Land Capacity over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
+    #     plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--') 
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Land Capacity')
+    #     plt.legend()
+    #     plt.title('Land Capacity Over Time')
+    #     plt.savefig(f"{file_name}_land_capacity.png")
+    #     plt.show()
+    #     plt.close()
+
+    #     # Food Storage over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.food_storage_over_time, label='Food Storage')
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Food Storage')
+    #     plt.legend()
+    #     plt.title('Food Storage Over Time')
+    #     plt.savefig(f"{file_name}_food_storage.png")
+    #     plt.show()
+    #     plt.close()
+
+    #     # Average Fertility over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Average Household Fertility')
+    #     plt.legend()
+    #     plt.title('Average Fertility Over Time')
+    #     plt.savefig(f"{file_name}_avg_fertility.png")
+    #     plt.show()
+    #     plt.close()
+
+    #     # Average Age over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.average_age, label='Avg. Age')
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Average Age')
+    #     plt.legend()
+    #     plt.title('Average Age Over Time')
+    #     plt.savefig(f"{file_name}_avg_age.png")
+    #     plt.show()
+    #     plt.close()
+
+    #     # Average Life Span over time
+    #     plt.figure(figsize=(10, 6))
+    #     plt.plot(self.average_life_span, label='Avg. Life Span')
+    #     plt.xlabel('Time Step')
+    #     plt.ylabel('Average Life Span')
+    #     plt.legend()
+    #     plt.title('Average Life Span Over Time')
+    #     plt.savefig(f"{file_name}_avg_life_span.png")
+    #     plt.show()
+    #     plt.close()
+
     def get_agent_by_id(self, agent_id):
         for household in self.households:
             for agent in household.members:
@@ -637,8 +786,8 @@ class Village:
         
         combined_network = self.combined_network()
         agent_network = combined_network[household.id]
-        print('\nAgent network:')
-        print(agent_network)
+        # print('\nAgent network:')
+        # print(agent_network)
         for agent in eligible_agents:
             print('Eligible agent {}, household: ({}, {})'.format(agent.id, agent.household_id, household.id))
 
@@ -670,8 +819,8 @@ class Village:
             if household.get_total_food() > 100: # need to be able to pay bride price
                 for member in household.members:
                     if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
-                        print(agent.household_id == member.household_id)
-                        print(agent.household_id, member.household_id)
+                        # print(agent.household_id == member.household_id)
+                        # print(agent.household_id, member.household_id)
                         potential_spouses.append(member)
         return potential_spouses
     
@@ -679,9 +828,11 @@ class Village:
         """Handle the marriage process, ensuring the female moves to the male's household."""
         old_household = self.get_household_by_id(female_agent.household_id)
         female_agent.marry(male_agent)
-        bride_price = 100
-        price_to_pay = bride_price 
+        
         new_household = self.get_household_by_id(male_agent.household_id)
+        bride_price = sum(amount for amount, _ in new_household.food_storage) * 0.20
+        male_luxury_goods = new_household.luxury_good_storage
+        price_to_pay = bride_price 
         while price_to_pay > 0 and new_household.food_storage: 
             amount, age_added = new_household.food_storage[0]
             if price_to_pay <= amount:
@@ -690,8 +841,8 @@ class Village:
             else:
                 new_household.food_storage.pop(0)
                 price_to_pay -= amount
-        
-        
+        old_household.luxury_good_storage += male_luxury_goods
+        new_household.luxury_good_storage -= male_luxury_goods
         
         old_household.add_food(bride_price - price_to_pay)
         # women move to men's household after marriage.
@@ -702,4 +853,33 @@ class Village:
 
         print(f"Marriage: {female_agent.id} (female) moved to {male_agent.id} (male) household {new_household.id}.")
     
-   
+    
+
+    def calculate_wealth(self):
+        wealths = [household.get_wealth() for household in self.households if household in self.households]
+        return wealths
+
+    def calculate_gini_coefficient(self, wealths):
+        if len(wealths) == 0:
+            return None  
+        wealths = sorted(wealths)
+        n = len(wealths)
+        mean_wealth = np.mean(wealths)
+        
+        if mean_wealth == 0:
+            return 0
+        
+        cumulative_diff_sum = sum([sum([abs(w_i - w_j) for w_j in wealths]) for w_i in wealths])
+        gini_coefficient = cumulative_diff_sum / (2 * n**2 * mean_wealth)
+        
+        return gini_coefficient
+    
+    def track_inequality_over_time(self):
+        wealths = self.calculate_wealth()
+        gini_coefficient = self.calculate_gini_coefficient(wealths)
+        print('gini', gini_coefficient)
+        if gini_coefficient is not None:
+            self.gini_coefficients.append(gini_coefficient)
+        else:
+            self.gini_coefficients.append(0)
+    

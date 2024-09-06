@@ -55,7 +55,7 @@ class Agent:
         if self.is_alive:
             age_index = self.get_age_group_index()
             phi = self.vec1.phi[age_index]
-            work_output = phi * 5
+            work_output = phi * 6
             return work_output
         return work_output
     
@@ -79,7 +79,7 @@ class Agent:
         age_index = self.get_age_group_index()
         
         survival_probability = self.vec1.pstar[age_index] * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms[age_index], z)
-        fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z)
+        fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z) * 5
         
         # survival_probability = p0[age_index]  # survival probability
 
@@ -94,7 +94,8 @@ class Agent:
         # fertility_probability = m0[age_index]
         self.fertility = fertility_probability
         if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
-            if len(household.members) < 5 or village.is_land_available():
+            # if len(household.members) < 10 or village.is_land_available() is True:
+            if len(household.members) + len(self.newborn_agents) < 20: # or village.is_land_available():
         # if random.random() < fertility_probability and self.gender == 'female':
             # print(f"Agent {self.household_id} reproduces at age {self.age}.")
                 self.reproduce()

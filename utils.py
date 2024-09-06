@@ -7,6 +7,7 @@ import scipy.special as sp
 import math
 import uuid
 # idh_count = 0
+random.seed(10)
 def generate_random_agent(household_id, vec1):
 
     """Generate a random agent with basic attributes."""
