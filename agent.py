@@ -32,7 +32,6 @@ class Agent:
         self.fertility = fertility
         self.marital_status = 'single'
         self.partner_id = None
-        # self.children_ids = []
 
     def get_age_group_index(self):
         """Determine the age group index for the agent."""
@@ -40,14 +39,6 @@ class Agent:
         if self.age >= len(self.vec1.phi):
             return len(self.vec1.phi) - 1
         return self.age
-
-    # def consume_resources(self):
-    #     """Simulate resource consumption based on effectiveness and consumption parameters."""
-    #     if self.is_alive:
-    #         age_index = self.get_age_group_index()
-    #         phi = self.vec1.phi[age_index]
-    #         rho = self.vec1.rho[age_index]
-    #         consumption_amount = rho * 10
 
     def work(self):
         """Simulate work done by the agent based on effectiveness parameter."""
@@ -66,38 +57,22 @@ class Agent:
             return
         
         self.age += 1
-        # Get z
-        
-        # total_food = sum(i for (i, j) in household.food_storage)
-        # personal_portion = self.age/sum(agent.age for agent in household.members)
-        # person_share = personal_portion/total_food
-        # person_need = self.vec1.rho[self.get_age_group_index()] 
-        # z = person_share / person_need
 
-        # print(f'Z value {z}; person pocess {person_share}; personal need: {person_need}')
-        # z = 1
         age_index = self.get_age_group_index()
         
         survival_probability = self.vec1.pstar[age_index] * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms[age_index], z)
         fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z) * 5
         
-        # survival_probability = p0[age_index]  # survival probability
-
         if random.random() > survival_probability:
             self.is_alive = False
             partner = village.get_agent_by_id(self.partner_id)
             if partner:
                 partner.marital_status = 'single'
-                # partner.partner_id = None
             return
         
-        # fertility_probability = m0[age_index]
         self.fertility = fertility_probability
         if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
-            # if len(household.members) < 10 or village.is_land_available() is True:
             if len(household.members) + len(self.newborn_agents) < 20: # or village.is_land_available():
-        # if random.random() < fertility_probability and self.gender == 'female':
-            # print(f"Agent {self.household_id} reproduces at age {self.age}.")
                 self.reproduce()
     
     def reproduce(self):

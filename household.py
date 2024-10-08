@@ -16,7 +16,8 @@ class Household:
         self.luxury_good_storage = 0
         self.current_step = 0
         self.food_expiration_steps = 3
-        # self.household_id = id
+        
+        
     
     def clean_up(self):
         self.members.clear()  
@@ -31,7 +32,6 @@ class Household:
         """Remove expired food from storage based on the current step."""
         self.food_storage = [(amount, age_added) for amount, age_added in self.food_storage
                              if self.current_step - age_added < self.food_expiration_steps]
-        # self.advance_step()
 
     def advance_step(self):
         """Advance the step count for food expiration date."""
@@ -44,16 +44,19 @@ class Household:
         return village.land_types[self.location].get('max_capacity', 1.0)
     
 
-    def produce_food(self, village, vec1):
+    def produce_food(self, village, vec1, prod_multiplier):
         """Simulate food production based on land quality and the work done by household members."""
+        land_data = village.land_types[self.location]
+        if land_data['fallow']:
+            print(f"Household {self.id} cannot farm land plot {self.location} because it is fallow.")
+            return
         land_quality = village.land_types[self.location]['quality']
         production_amount = 0
         for member in self.members:
             if member.is_alive:
                 work_output = member.work() 
                 # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
-                production_amount += work_output * land_quality
-                # production_amount += work_output
+                production_amount += work_output * land_quality * prod_multiplier
 
         self.add_food(production_amount)
         self.update_food_storage()
@@ -65,6 +68,7 @@ class Household:
         Does not keep track of the expiry of the removed food.
         Returns the actual amount of food removed (can be less than amount, if storage is too low).
         """
+        print(self.food_storage)
         for i in range(len(self.food_storage)):
             removed = 0
             if self.food_storage[i][0] > amount:
@@ -90,8 +94,6 @@ class Household:
         print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
 
     def get_distance(self, location1, location2):
-        # x1, y1 = map(int, location1.split(','))
-        # x2, y2 = map(int, location2.split(','))
         x1, y1 = location1
         x2, y2 = location2
         return abs(x1 - x2) + abs(y1 - y2)
@@ -111,40 +113,16 @@ class Household:
     def split_household(self, village):
         """Handle the splitting of a household when it grows too large."""
         
-        empty_land_cells = [loc for loc, data in village.land_types.items() if not data['occupied']]
+        empty_land_cells = [loc for loc, data in village.land_types.items() if data['occupied'] == False and data['fallow'] == False]
         
         if empty_land_cells:
             new_household_members_ids = set()
-            # self.members.sort(key=lambda x: x.age)
             random.shuffle(self.members)
-            # order = {"single": 0, "married": 1}
-            # self.members.sort(key=lambda x: order.get(x.marital_status, 2)) 
             # TODO: can pick randomly
 
             members_to_leave = len(self.members) // 2
             mixed_members = []
 
-            # i, j = 0, len(self.members) - 1
-            # while i <= j and len(mixed_members) < members_to_leave:
-            #     if i < len(self.members):
-            #         mixed_members.append(self.members[i])  
-            #         i += 1
-            #     if j >= 0 and len(mixed_members) < members_to_leave:
-            #         mixed_members.append(self.members[j])  
-            #         j -= 1
-
-            
-
-            # for agent in mixed_members:
-            #     if count < members_to_leave:
-            #         if agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
-            #             partner = next((m for m in self.members if m.id == agent.partner_id), None)
-            #             if partner:
-            #                 new_household_members_ids.add(partner.id)
-            #                 count += 1
-                    
-            #         new_household_members_ids.add(agent.id)
-            #         count += 1
             count = 0
             for agent in self.members:
                 if count < members_to_leave and agent.marital_status == 'single':
@@ -171,13 +149,11 @@ class Household:
                 # print(new_household_members_ids)
                 raise BaseException('Agent to split not in household {}!'.format(self.id))
 
-            # self.food_storage = sum(amount for amount, _ in self.food_storage)
             new_food_storage = [(f/2, y) for (f, y) in self.food_storage]
             self.food_storage = new_food_storage
 
             new_luxury_good_storage = self.luxury_good_storage // 2
             self.luxury_good_storage -= new_luxury_good_storage
-            # new_household_id = next(Household._id_iter)
             
             new_household = Household(
                # new_household_id,

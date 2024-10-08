@@ -6,7 +6,6 @@ from agent import Vec1
 import scipy.special as sp
 import math
 import uuid
-# idh_count = 0
 random.seed(10)
 def generate_random_agent(household_id, vec1):
 
@@ -19,10 +18,8 @@ def generate_random_agent(household_id, vec1):
 
 def generate_random_household(num_members, location, vec1):
     """Generate a random household with a specified number of agents."""
-    # food_storage = random.randint(1, 10)
     food_storage = num_members
     luxury_good_storage = 0
-    # food_storage = 0
     new_household = Household([], location, food_storage, luxury_good_storage)
     new_household.members = [generate_random_agent(new_household.id, vec1) for _ in range(num_members)]
     
@@ -33,13 +30,14 @@ def generate_random_village(num_households, num_land_cells, vec1):
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}
     for i in range(num_land_cells):
-        # location = f'{i // grid_size},{i % grid_size}'
         location = (i // grid_size, i % grid_size)
         land_types[location] = {
             'quality': 5,
             'occupied': False,
             'max_capacity': 10,
-            'recovery_rate': 0.03
+            'recovery_rate': 0.03,
+            'fallow': False,      
+            'fallow_timer': 0
         }
 
     households = []

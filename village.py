@@ -34,6 +34,7 @@ class Village:
         self.average_age = []
         self.gini_coefficients = []
         self.networks = []
+        self.fallow_cycle = 5
 
     def initialize_network(self):
         
@@ -226,38 +227,40 @@ class Village:
                 return household
         return None
     
+
+    """ shifting cultivation: field rotation, not crops""" #https://www.sciencedirect.com/topics/agricultural-and-biological-sciences/shifting-cultivation#:~:text=According%20to%20archaeological%20evidence%2C%20shifting,occurred%20(Sharma%2C%201976).
+
+
     def migrate_household(self, household):
         """Handle the migration of a household to a new land cell if necessary."""
-        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if not land_data['occupied']]
-        total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
-        land_quality = self.land_types[household.location]['quality']
-        total_food_storage = sum(amount for amount, _ in household.food_storage)
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
+        # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
+        # land_quality = self.land_types[household.location]['quality']
+        # total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-        if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
-            print(f'Poor - Migration qualify for {household.id}')
-            if empty_land_cells:
-                print("There are empty land to migrate")
-                sorted_land_cells = sorted(empty_land_cells, key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality']))
-                best_land = sorted_land_cells[0]   
-                self.land_types[household.location]['occupied'] = False
-                household.location = best_land[0]
-                self.land_types[household.location]['occupied'] = True
-                migrate_cost = sum(amount for amount, _ in household.food_storage) * 0.2
-                """ Pay for the migration """
-                still_pay = migrate_cost
-                while still_pay > 0 and household.food_storage:
-                    amount, age_added = household.food_storage[0]
-                    if amount > still_pay:
-                        household.food_storage[0] = (amount - still_pay, age_added)
-                        still_pay = 0
-                    else:
-                        household.food_storage.pop(0)
-                        still_pay -= amount
-                print(f"Household {household.id} migrated to {household.location}.")
+        # if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
+        #     print(f'Poor - Migration qualify for {household.id}')
+        if empty_land_cells:
+            print("There are empty land to migrate")
+            sorted_land_cells = sorted(empty_land_cells, key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality']))
+            best_land = sorted_land_cells[0]   
+            self.land_types[household.location]['occupied'] = False
+            household.location = best_land[0]
+            self.land_types[household.location]['occupied'] = True
+            migrate_cost = sum(amount for amount, _ in household.food_storage) * 0.2
+            """ Pay for the migration """
+            still_pay = migrate_cost
+            while still_pay > 0 and household.food_storage:
+                amount, age_added = household.food_storage[0]
+                if amount > still_pay:
+                    household.food_storage[0] = (amount - still_pay, age_added)
+                    still_pay = 0
+                else:
+                    household.food_storage.pop(0)
+                    still_pay -= amount
+            print(f"Household {household.id} migrated to {household.location}.")
 
     def get_distance(self, location1, location2):
-        # x1, y1 = map(int, location1.split(','))
-        # x2, y2 = map(int, location2.split(','))
         x1, y1 = location1
         x2, y2 = location2
         return abs(x1 - x2) + abs(y1 - y2)
@@ -375,7 +378,17 @@ class Village:
                 if id2 not in all_households:
                     raise BaseException('Household ID {} is in the relation network, but does not exist!\n'.format(id2))
 
-    def run_simulation_step(self, vec1):
+    def take_spare_food_for_poor(self, household, total_food, total_food_needed):
+        """Take spare food from the village for households that need it."""
+        
+        if total_food < total_food_needed and len(self.spare_food) != 0:
+            food_need = total_food_needed - total_food
+            amount_get = self.reduce_food_from_village(household, food_need)
+            household.add_food(amount_get)
+            total_food += amount_get
+            print(f"Household {household.id} gets {amount_get} from the Village.")
+
+    def run_simulation_step(self, vec1, prod_multiplier, spare_food_enabled=False):
         
         """Run a single simulation step (year)."""
         
@@ -385,7 +398,7 @@ class Village:
         self.update_network_connectivity()
         longevities = []
         for household in self.households:
-            household.produce_food(self, vec1)
+            household.produce_food(self, vec1, prod_multiplier)
             
             dead_agents = []
             newborn_agents = []
@@ -393,10 +406,12 @@ class Village:
             total_food = sum(x for x, _ in household.food_storage)
             total_food_needed = sum(agent.vec1.rho[agent.get_age_group_index()] for
             	agent in household.members)
+            if spare_food_enabled:
+                self.take_spare_food_for_poor(household, total_food, total_food_needed)
 
             # z = total_food * total_food_needed
 
-            """ Take spare food for the poor""" # can comment out if not needed.
+            """ Take spare food for the poor""" 
             # # if z < 0.5 and len(self.spare_food) != 0:
             # #     food_need = len(household.members)
             # if total_food < total_food_needed and len(self.spare_food) != 0:
@@ -441,7 +456,14 @@ class Village:
             self.average_life_span.append(self.average_life_span[-1])
 
         for household in self.households:
-            self.migrate_household(household)
+            total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
+            land_quality = self.land_types[household.location]['quality']
+            total_food_storage = sum(amount for amount, _ in household.food_storage)
+
+            if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
+                print(f'Poor - Migration qualify for {household.id}')
+
+                self.migrate_household(household)
             self.propose_marriage(household) # if choose to comment out this line, please also comment out 
 
             if len(household.members) > 20:
@@ -454,7 +476,7 @@ class Village:
         self.update_land_capacity()        
         self.manage_luxury_goods()
         self.trading()
-
+        self.update_fallow_land()
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += 5
@@ -883,3 +905,31 @@ class Village:
         else:
             self.gini_coefficients.append(0)
     
+    
+    def update_fallow_land(self):
+        """Update land plots every year to manage the fallow cycle."""
+        for land_id, land_data in self.land_types.items():
+            if land_data['fallow']:
+                
+                # decrease the fallow timer and reset fallow status when the timer expires
+                land_data['fallow_timer'] -= 1
+                if land_data['fallow_timer'] <= 0:
+                    land_data['fallow'] = False
+                    print(f"Land plot {land_id} is no longer fallow.")
+            else:
+                # every 5 years, send this land plot to fallow
+                if self.time % self.fallow_cycle == 0:
+                    land_data['fallow'] = True
+                    land_data['fallow_timer'] = 5  # 5 years of fallow period
+                    print(f"Land plot {land_id} is now fallow.")
+                    if land_data['occupied']:
+                        self.notify_household_to_migrate(land_id)
+
+    def notify_household_to_migrate(self, land_id):
+        """Notify the household occupying the land to migrate."""
+        print(f"Household on land plot {land_id} must migrate because the land is now fallow.")
+        
+        for household in self.households:
+            if household.location == land_id:
+                self.migrate_household(household)  # force the household to migrate
+                break
