@@ -259,6 +259,8 @@ class Village:
                     household.food_storage.pop(0)
                     still_pay -= amount
             print(f"Household {household.id} migrated to {household.location}.")
+        else:
+            print(f"Household {household.id} failed moving because there is no more space.")
 
     def get_distance(self, location1, location2):
         x1, y1 = location1
