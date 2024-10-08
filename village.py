@@ -908,22 +908,36 @@ class Village:
     
     def update_fallow_land(self):
         """Update land plots every year to manage the fallow cycle."""
+        if self.time < 5:
+            return
+        # decide how many lands to fallow
+        total_land = len(self.land_types)
+        num_lands_to_fallow = max(1, total_land // 10)
+
+        #sort lands by quality
+        available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
+        sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality'])  
+        
+        # select lands to fallow
+        lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
+
+        for land_id in lands_to_fallow:
+            self.land_types[land_id]['fallow'] = True
+            self.land_types[land_id]['fallow_timer'] = 5  # 5 years of fallow period
+            print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
+        
+            # If the land is occupied, notify the household to migrate
+            if self.land_types[land_id]['occupied']:
+                self.notify_household_to_migrate(land_id)
+
+        # reduce timers for lands that are already fallow and restore them if the timer expires
         for land_id, land_data in self.land_types.items():
             if land_data['fallow']:
-                
-                # decrease the fallow timer and reset fallow status when the timer expires
                 land_data['fallow_timer'] -= 1
                 if land_data['fallow_timer'] <= 0:
                     land_data['fallow'] = False
                     print(f"Land plot {land_id} is no longer fallow.")
-            else:
-                # every 5 years, send this land plot to fallow
-                if self.time % self.fallow_cycle == 0:
-                    land_data['fallow'] = True
-                    land_data['fallow_timer'] = 5  # 5 years of fallow period
-                    print(f"Land plot {land_id} is now fallow.")
-                    if land_data['occupied']:
-                        self.notify_household_to_migrate(land_id)
+        print('land types', self.land_types)
 
     def notify_household_to_migrate(self, land_id):
         """Notify the household occupying the land to migrate."""
@@ -931,5 +945,7 @@ class Village:
         
         for household in self.households:
             if household.location == land_id:
-                self.migrate_household(household)  # force the household to migrate
+                self.migrate_household(household)
+                print(f"{household.id} are forced migrate to another land")
+                  # force the household to migrate
                 break
