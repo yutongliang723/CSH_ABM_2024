@@ -21,6 +21,7 @@ class Vec1:
 
 class Agent:
     _id_iter = itertools.count(start = 1)
+    # last_names = itertools.count(start = 1)
     def __init__(self, age, gender, household_id, vec1, fertility):
         self.id = next(Agent._id_iter)
         self.age = age
@@ -32,6 +33,7 @@ class Agent:
         self.fertility = fertility
         self.marital_status = 'single'
         self.partner_id = None
+        self.last_name = 'Last Name', household_id
 
     def get_age_group_index(self):
         """Determine the age group index for the agent."""

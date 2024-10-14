@@ -9,11 +9,17 @@ import random
 from agent import Agent
 from agent import Vec1
 import statistics
+import itertools
 
 # from utils import reduce_food_from_house
 
+    
 class Village:
+    # _id_iter = itertools.count(start = 1)
+    _id_counter = 1
     def __init__(self, households, land_types):
+        self.id = str(Village._id_counter)+"V"
+        Village._id_counter += 1
         self.households = households
         self.land_types = land_types
         self.time = 0
@@ -163,15 +169,14 @@ class Village:
             
             if total_available_food > 2 * food_needed and self.luxury_goods_in_village == 0: 
                 """ Too much food - Wants to trade for luxury goods"""
-                print(f"Qualify to get more luxury {household.id}")
+                # print(f"Qualify to get more luxury {household.id}")
                 food_for_luxury.append(household)
             if total_available_food < 50 * food_needed and household.luxury_good_storage > 0:
                 """ Not enough food - Wants to trade for food """
                 luxury_for_food.append(household)
-                print(f"Qualify to get more food {household.id}")
+                # print(f"Qualify to get more food {household.id}")
             # elif total_available_food < 1.5 * food_needed and household.luxury_good_storage == 0:
             #     charity.append(household)
-            # this has been moved to run_simulation_step func
 
         combined_network = self.combined_network()
         for food_household in food_for_luxury:
@@ -226,20 +231,21 @@ class Village:
             if household.id == household_id:
                 return household
         return None
+    def get_village_by_id(self, area, village_id):
+        """Retrieve a household by its ID."""
+        for village in area.villages:
+            if village.id == village_id:
+                return village
+        return None
     
 
     """ shifting cultivation: field rotation, not crops""" #https://www.sciencedirect.com/topics/agricultural-and-biological-sciences/shifting-cultivation#:~:text=According%20to%20archaeological%20evidence%2C%20shifting,occurred%20(Sharma%2C%201976).
 
 
-    def migrate_household(self, household):
+    def migrate_household_within_village(self, household):
         """Handle the migration of a household to a new land cell if necessary."""
         empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
-        # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
-        # land_quality = self.land_types[household.location]['quality']
-        # total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-        # if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
-        #     print(f'Poor - Migration qualify for {household.id}')
         if empty_land_cells:
             print("There are empty land to migrate")
             sorted_land_cells = sorted(empty_land_cells, key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality']))
@@ -258,9 +264,92 @@ class Village:
                 else:
                     household.food_storage.pop(0)
                     still_pay -= amount
+            self.update_network_connectivity()
             print(f"Household {household.id} migrated to {household.location}.")
         else:
             print(f"Household {household.id} failed moving because there is no more space.")
+
+
+    def migrate_household(self, household, area):
+        """Migrate a household to the most connected village, or within the current village if possible."""
+        # if the current village has available land for migration
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() 
+                            if not land_data['occupied'] and not land_data['fallow']]
+        if empty_land_cells:
+            self.migrate_household_within_village(household)
+            return
+
+        # sort other villages by the number of connections (most connected first)
+        connected_villages = sorted(
+            [v for v in area.villages if v.id != self.id],  
+            key=lambda v: area.get_connection_count(self.id, v.id),  
+            reverse=True  
+        )
+        print("connected_villages",connected_villages)
+        for target_village in connected_villages:
+            if target_village.id == self.id:
+                continue 
+
+            target_empty_land_cells = [
+                (cell_id, land_data) for cell_id, land_data in target_village.land_types.items() 
+                if not land_data['occupied'] and not land_data['fallow']
+            ]
+
+            if target_empty_land_cells:
+                additional_migration_cost = sum(amount for amount, _ in household.food_storage) * 0.3
+                still_pay = additional_migration_cost
+
+                while still_pay > 0 and household.food_storage:
+                    amount, age_added = household.food_storage[0]
+                    if amount > still_pay:
+                        household.food_storage[0] = (amount - still_pay, age_added)
+                        still_pay = 0
+                    else:
+                        household.food_storage.pop(0)
+                        still_pay -= amount
+
+                self.remove_household(household)
+                target_village.add_household(household)
+                household.village_id = target_village.id
+
+                self.update_network_connectivity()
+                target_village.update_network_connectivity()
+                print(f"Household {household.id} migrated from village {self.id} to village {target_village.id}.")
+                return
+
+        print(f"Household {household.id} could not migrate because there is no available land in any connected village.")
+
+    def add_household(self, household):
+        """Add a household to the village and place it on an available land cell."""
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() 
+                            if not land_data['occupied'] and not land_data['fallow']]
+
+        if not empty_land_cells:
+            print(f"No available land cells to add household {household.id} in village {self.id}.")
+            return
+
+        sorted_land_cells = sorted(empty_land_cells, key=lambda x: -x[1]['quality']) # choose the best land
+        best_land = sorted_land_cells[0]
+
+        household.location = best_land[0]
+        self.land_types[household.location]['occupied'] = True
+
+        self.households.append(household)
+        household.village_id = self.id
+
+        print(f"Household {household.id} added to village {self.id} at location {household.location}.")
+     
+    def remove_household(self, household):
+        """Remove a household from the village and free up the land cell."""
+        if household in self.households:
+            self.land_types[household.location]['occupied'] = False
+            self.households.remove(household)
+            del self.network[household.id]
+            for c in self.network.values():
+                del c['connectivity'][household.id]
+            del self.network_relation[household.id]
+            for c in self.network_relation.values():
+                del c['connectivity'][household.id]
 
     def get_distance(self, location1, location2):
         x1, y1 = location1
@@ -390,7 +479,7 @@ class Village:
             total_food += amount_get
             print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1, prod_multiplier, spare_food_enabled=False):
+    def run_simulation_step(self, vec1, prod_multiplier, area, spare_food_enabled=False):
         
         """Run a single simulation step (year)."""
         
@@ -400,6 +489,7 @@ class Village:
         self.update_network_connectivity()
         longevities = []
         for household in self.households:
+            self.remove_empty_household(household)
             household.produce_food(self, vec1, prod_multiplier)
             
             dead_agents = []
@@ -449,13 +539,14 @@ class Village:
             print(f"Household {household.id} had {len(newborn_agents)} newborns.")
         
             # household.consume_food()
-            household.consume_food(total_food_needed)
+            household.consume_food(total_food_needed, self)
             self.remove_empty_household(household)
-        
+        # print('self.average_life_span', self.average_life_span)
         if longevities:
             self.average_life_span.append(sum(longevities)/len(longevities))
         else:
-            self.average_life_span.append(self.average_life_span[-1])
+            # self.average_life_span.append(self.average_life_span[-1])
+            pass
 
         for household in self.households:
             total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
@@ -465,8 +556,8 @@ class Village:
             if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
                 print(f'Poor - Migration qualify for {household.id}')
 
-                self.migrate_household(household)
-            self.propose_marriage(household) # if choose to comment out this line, please also comment out 
+                self.migrate_household(household, area)
+            self.propose_marriage(household, area) # if choose to comment out this line, please also comment out 
 
             if len(household.members) > 20:
                 household.split_household(self)
@@ -478,7 +569,7 @@ class Village:
         self.update_land_capacity()        
         self.manage_luxury_goods()
         self.trading()
-        self.update_fallow_land()
+        self.update_fallow_land(area)
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += 5
@@ -800,7 +891,7 @@ class Village:
                     return agent
         return None
 
-    def propose_marriage(self, household):
+    def propose_marriage(self, household, area):
         """Handle the marriage proposals and household merging."""
         eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= 14 and agent.age <= 50 and agent.gender == 'female' and agent.marital_status == 'single']
         # print('agent household_id', household.id)
@@ -815,18 +906,26 @@ class Village:
         for agent in eligible_agents:
             print('Eligible agent {}, household: ({}, {})'.format(agent.id, agent.household_id, household.id))
 
-            potential_spouses = self.find_potential_spouses(agent)
+            potential_spouses = self.find_potential_spouses(agent, area)
             
             max_connect = 0
             best_agent = None # solve here
             richest_asset = 0
+            # for village in area.villages:
+            #     print("Village:", village.id)
+            #     for household in village.households:
+            #         print("Household: ", household.id)
             if potential_spouses:
                 for potential in potential_spouses:
                     potential_household = self.get_household_by_id(potential.household_id)
+                    # print('potential_agent:', potential.id)
+                    # print('potential_house:', potential, potential_household.id)
+                    # print('potential:', potential, potential_household.id, potential_household.village_id)
                     potential_asset = potential_household.get_total_food()
                     # print('potential.household_id', potential.household_id)
                     mutual_connection = agent_network['connectivity'][potential.household_id]
-                    if mutual_connection > max_connect and potential_asset > richest_asset:
+                    if mutual_connection > max_connect and potential_asset > richest_asset and potential.last_name != agent.last_name:
+                        # last name system implemented
                         max_connect = mutual_connection
                         richest_asset = potential_asset
                         best_agent = potential
@@ -836,16 +935,25 @@ class Village:
                     print('marry agent ({}, {})'.format(agent.household_id, household.id))
                     self.marry_agents(agent, chosen_spouse)
 
-    def find_potential_spouses(self, agent):
+    def find_potential_spouses(self, agent, area):
         """Find potential spouses for an agent from other households."""
         potential_spouses = []
-        for household in self.households:
-            if household.get_total_food() > 100: # need to be able to pay bride price
-                for member in household.members:
-                    if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
-                        # print(agent.household_id == member.household_id)
-                        # print(agent.household_id, member.household_id)
-                        potential_spouses.append(member)
+        their_household = self.get_household_by_id(agent.household_id)
+        if len(their_household.members) > 15:
+            target_village = area.find_other_village(self)
+            for household in target_village.households:
+                if household.get_total_food() > 100: # need to be able to pay bride price
+                    for member in household.members:
+                        if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
+                            potential_spouses.append(member)
+        else:
+            for household in self.households:
+                if household.get_total_food() > 100: # need to be able to pay bride price
+                    for member in household.members:
+                        if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and 14 <= member.age <= 50 and member.marital_status == 'single':
+                            # print(agent.household_id == member.household_id)
+                            # print(agent.household_id, member.household_id)
+                            potential_spouses.append(member)
         return potential_spouses
     
     def marry_agents(self, female_agent, male_agent):
@@ -872,7 +980,6 @@ class Village:
         # women move to men's household after marriage.
         new_household.extend(female_agent)
         old_household.remove_member(female_agent)
-        
         female_agent.household_id = new_household.id
 
         print(f"Marriage: {female_agent.id} (female) moved to {male_agent.id} (male) household {new_household.id}.")
@@ -908,7 +1015,7 @@ class Village:
             self.gini_coefficients.append(0)
     
     
-    def update_fallow_land(self):
+    def update_fallow_land(self, area):
         """Update land plots every year to manage the fallow cycle."""
         if self.time < 5:
             return
@@ -930,7 +1037,7 @@ class Village:
         
             # If the land is occupied, notify the household to migrate
             if self.land_types[land_id]['occupied']:
-                self.notify_household_to_migrate(land_id)
+                self.notify_household_to_migrate(land_id, area)
 
         # reduce timers for lands that are already fallow and restore them if the timer expires
         for land_id, land_data in self.land_types.items():
@@ -939,15 +1046,15 @@ class Village:
                 if land_data['fallow_timer'] <= 0:
                     land_data['fallow'] = False
                     print(f"Land plot {land_id} is no longer fallow.")
-        print('land types', self.land_types)
+        # print('land types', self.land_types)
 
-    def notify_household_to_migrate(self, land_id):
+    def notify_household_to_migrate(self, land_id, area):
         """Notify the household occupying the land to migrate."""
         print(f"Household on land plot {land_id} must migrate because the land is now fallow.")
         
         for household in self.households:
             if household.location == land_id:
-                self.migrate_household(household)
+                self.migrate_household(household, area)
                 print(f"{household.id} are forced migrate to another land")
                   # force the household to migrate
                 break

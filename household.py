@@ -6,9 +6,9 @@ import itertools
 
 class Household:
     _id_iter = itertools.count(start = 1)
-    def __init__(self, members, location, food_storage, luxury_good_storage):
+    def __init__(self, members, location, food_storage, luxury_good_storage, village_id = None):
         self.id = next(Household._id_iter)
-        print('New household: {}'.format(self.id))
+        # print('New household: {}'.format(self.id))
         self.members = members
         self.location = location  
         self.food_storage = []
@@ -16,6 +16,7 @@ class Household:
         self.luxury_good_storage = 0
         self.current_step = 0
         self.food_expiration_steps = 3
+        self.village_id = village_id
         
         
     
@@ -83,16 +84,21 @@ class Household:
         self.food_storage = list((x, y) for x, y in self.food_storage if x > 0)
         return removed
 
-    def consume_food(self, total_food_needed):
+    def consume_food(self, total_food_needed, village):
         """Simulate food consumption by household members."""
         # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
+
         self.food_storage.sort(key=lambda x: x[1])
         # remove expired food -- TODO: I don't think it is needed here !!
         self.update_food_storage()
         total_available_food = sum(amount for amount, _ in self.food_storage)
-        consumed = self.remove_food(total_food_needed)
-        print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
-
+        if total_available_food > 0:
+            consumed = self.remove_food(total_food_needed)
+            print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
+        else: #### can change to other mechanism
+            household_to_drop = village.get_household_by_id(id) 
+            village.remove_household(household_to_drop)
+            print(f'Sadly, household {id} starved to death.')
     def get_distance(self, location1, location2):
         x1, y1 = location1
         x2, y2 = location2
