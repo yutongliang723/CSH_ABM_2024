@@ -44,23 +44,30 @@ class Household:
         return village.land_types[self.location].get('max_capacity', 1.0)
     
 
-    def produce_food(self, village, vec1, prod_multiplier):
+    def produce_food(self, village, vec1, prod_multiplier, fishing_discount):
         """Simulate food production based on land quality and the work done by household members."""
         land_data = village.land_types[self.location]
         if land_data['fallow']:
+            production_amount = 0
+            for member in self.members:
+                if member.is_alive:
+                    work_output = member.work() 
+            
+                    production_amount += work_output * fishing_discount
             print(f"Household {self.id} cannot farm land plot {self.location} because it is fallow.")
-            return
-        land_quality = village.land_types[self.location]['quality']
-        production_amount = 0
-        for member in self.members:
-            if member.is_alive:
-                work_output = member.work() 
-                # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
-                production_amount += work_output * land_quality * prod_multiplier
-
+        
+        else:
+            land_quality = village.land_types[self.location]['quality']
+            production_amount = 0
+            for member in self.members:
+                if member.is_alive:
+                    work_output = member.work() 
+                    # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
+                    production_amount += work_output * land_quality * prod_multiplier
+            print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
         self.add_food(production_amount)
         self.update_food_storage()
-        print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
+        
     
     def remove_food(self, amount):
         """
@@ -83,15 +90,19 @@ class Household:
         self.food_storage = list((x, y) for x, y in self.food_storage if x > 0)
         return removed
 
-    def consume_food(self, total_food_needed):
+    def consume_food(self, total_food_needed, village):
         """Simulate food consumption by household members."""
         # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
         self.food_storage.sort(key=lambda x: x[1])
         # remove expired food -- TODO: I don't think it is needed here !!
         self.update_food_storage()
         total_available_food = sum(amount for amount, _ in self.food_storage)
-        consumed = self.remove_food(total_food_needed)
-        print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
+        if not len(self.food_storage) == 0:
+
+            consumed = self.remove_food(total_food_needed)
+            print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
+        else: village.remove_household(self)
+
 
     def get_distance(self, location1, location2):
         x1, y1 = location1

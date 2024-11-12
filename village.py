@@ -23,7 +23,7 @@ class Village:
         self.food_storage_over_time = []
         self.land_usage_over_time = []
         self.average_fertility_over_time = []
-        self.average_life_span = []
+        self.average_life_span = [0]
         self.network = {}
         self.network_relation = {}
         self.spare_food = []
@@ -302,7 +302,23 @@ class Village:
                 del self.network_relation[household.id]
                 for c in self.network_relation.values():
                     del c['connectivity'][household.id]
-    
+    def remove_household(self,household):
+        luxury_good_to_donate = household.luxury_good_storage
+        food_to_donate = household.food_storage
+        self.luxury_goods_in_village += luxury_good_to_donate
+        if len(food_to_donate) != 0:
+            self.spare_food.extend(food_to_donate)
+        print('food to donate', food_to_donate)
+
+        self.land_types[household.location]['occupied'] = False
+        self.households.remove(household)
+        print('empty household', household.id)
+        del self.network[household.id]
+        for c in self.network.values():
+            del c['connectivity'][household.id]
+        del self.network_relation[household.id]
+        for c in self.network_relation.values():
+            del c['connectivity'][household.id]
     def check_consistency(self):
         """
         Check that all components are consistent (i.e. no errors introduced)
@@ -390,7 +406,7 @@ class Village:
             total_food += amount_get
             print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1, prod_multiplier, spare_food_enabled=False):
+    def run_simulation_step(self, vec1, prod_multiplier, fishing_discount, spare_food_enabled=False, fallow_farming = False):
         
         """Run a single simulation step (year)."""
         
@@ -400,7 +416,7 @@ class Village:
         self.update_network_connectivity()
         longevities = []
         for household in self.households:
-            household.produce_food(self, vec1, prod_multiplier)
+            household.produce_food(self, vec1, prod_multiplier, fishing_discount)
             
             dead_agents = []
             newborn_agents = []
@@ -412,18 +428,6 @@ class Village:
                 self.take_spare_food_for_poor(household, total_food, total_food_needed)
 
             # z = total_food * total_food_needed
-
-            """ Take spare food for the poor""" 
-            # # if z < 0.5 and len(self.spare_food) != 0:
-            # #     food_need = len(household.members)
-            # if total_food < total_food_needed and len(self.spare_food) != 0:
-            #     food_need = total_food_needed - total_food
-            #     amount_get = self.reduce_food_from_village(household, food_need)
-            #     household.add_food(amount_get)
-            #     total_food += amount_get
-            #     # z = total_food * total_food_needed
-            #     print(f"Household {household.id} get {amount_get} from the Village.")
-            """ Take spare food for the poor"""
 
             for agent in household.members:
                 # agent_food_needed= agent.vec1.rho[agent.get_age_group_index()]
@@ -449,12 +453,13 @@ class Village:
             print(f"Household {household.id} had {len(newborn_agents)} newborns.")
         
             # household.consume_food()
-            household.consume_food(total_food_needed)
+            household.consume_food(total_food_needed, self)
             self.remove_empty_household(household)
         
         if longevities:
             self.average_life_span.append(sum(longevities)/len(longevities))
         else:
+            print('average_life_span', self.average_life_span)
             self.average_life_span.append(self.average_life_span[-1])
 
         for household in self.households:
@@ -478,7 +483,8 @@ class Village:
         self.update_land_capacity()        
         self.manage_luxury_goods()
         self.trading()
-        self.update_fallow_land()
+        if fallow_farming:
+            self.update_fallow_land()
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += 5
@@ -543,72 +549,80 @@ class Village:
             self.average_age.append(statistics.mean(all_ages))
     
 
+    from PIL import Image, ImageDraw, ImageFont
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
 
     def generate_animation(self, grid_dim):
         """Generate an animation of land usage over time."""
         if not self.land_usage_over_time:
-            # print("Error: No land usage data available for animation.")
+            # No data available to create animation
             return
 
+        # Load color map and font
         cmap = plt.get_cmap('OrRd')
         try:
-            font = ImageFont.truetype("arial.ttf", 20)  # Use a TrueType font
+            font = ImageFont.truetype("arial.ttf", 20)  # TrueType font
         except IOError:
-            font = ImageFont.load_default()  
+            font = ImageFont.load_default()  # Fallback to default if TTF font is unavailable
 
-        def render_animation(self, year):
+        cell_size = 100  # Each cell will be 100x100 pixels
+        image_size = grid_dim * cell_size  # Ensures a square grid layout
+
+        def render_animation(year):
             """Render the animation for a given year."""
             year_data = self.land_usage_over_time[year]
-
-            image = Image.new('RGBA', (grid_dim * 100, grid_dim * 100), color=(255, 255, 255, 0))
+            
+            # Create a new RGBA image
+            image = Image.new('RGBA', (image_size, image_size), color=(255, 255, 255, 0))
             draw = ImageDraw.Draw(image)
 
-            for (loc, land_data), p in zip(year_data.items(), self.population):
+            for (loc, land_data) in year_data.items():
                 x, y = loc
-                x *= 100
-                y *= 100
+                x *= cell_size
+                y *= cell_size
 
+                # Calculate color based on land quality
                 quality = land_data['quality'] * 0.2
-                color = tuple(int(255 * c) for c in cmap(quality/2)[:3])
-
-                draw.rectangle([(x, y), (x + 100, y + 100)], fill=color)
+                color = tuple(int(255 * c) for c in cmap(quality / 2)[:3])
+                
+                # Draw land cell
+                draw.rectangle([(x, y), (x + cell_size, y + cell_size)], fill=color)
 
                 if land_data['occupied']:
-                    quality = land_data['quality']
+                    # Occupied cell: add text with household and land info
                     household_id = land_data['household_id']
-                    household = self.get_household_by_id(household_id) 
                     agent_num = land_data['num_members']
                     text = f"{household_id}: # {agent_num}. Q: {round(quality, 2)}"
                     
-                    bbox = draw.textbbox((x, y), text, font=font)
+                    # Calculate text position and center it within the cell
+                    bbox = draw.textbbox((0, 0), text, font=font)
                     text_width = bbox[2] - bbox[0]
                     text_height = bbox[3] - bbox[1]
-
-                    text_x = x + (100 - text_width) // 2
-                    text_y = y + (100 - text_height) // 2
                     
-                    text_x = max(x + 5, min(text_x, x + 90 - text_width))
-                    text_y = max(y + 5, min(text_y, y + 90 - text_height))
+                    text_x = x + (cell_size - text_width) // 2
+                    text_y = y + (cell_size - text_height) // 2
+
+                    # Adjust to prevent clipping
+                    text_x = max(x + 5, min(text_x, x + cell_size - text_width - 5))
+                    text_y = max(y + 5, min(text_y, y + cell_size - text_height - 5))
                     
                     draw.text((text_x, text_y), text, fill=(0, 0, 0), font=font)
             
+            # Add year and population information
             draw.text((10, 10), f"Year: {year + 1}; Population: {self.population[year]}; # Houses: {self.num_house[year]}", fill=(0, 0, 0), font=font)
             return image
 
-        animation_frames = []
-        for year in range(len(self.land_usage_over_time)):
-            image = render_animation(self, year)
-            animation_frames.append(image)
+        # Generate frames for each year
+        animation_frames = [render_animation(year) for year in range(len(self.land_usage_over_time))]
 
-        if not animation_frames:
-            # print("Error: No animation frames generated.")
-            return
+        # Save as a GIF
+        animation_frames[0].save('static/village_simulation.gif', format='GIF', append_images=animation_frames[1:], save_all=True, duration=200, loop=0, optimize=True)
 
-        # print(f"Generated {len(animation_frames)} frames for animation.")
+        # Display in notebook (if using Jupyter or IPython environment)
+        display(widgets.Image(value=open('static/village_simulation.gif', 'rb').read()))
 
-        # save to gif
-        animation_frames[0].save('village_simulation.gif', format='GIF', append_images=animation_frames[1:], save_all=True, duration=200, loop=0, optimize=True)
-        display(widgets.Image(value=open('village_simulation.gif', 'rb').read()))
+    
 
     def update_tracking_variables(self):
         population = sum(len(household.members) for household in self.households)
@@ -651,7 +665,7 @@ class Village:
         # plt.legend()
         
         plt.tight_layout()
-        plt.savefig('gini_overtime')
+        plt.savefig('static/gini_overtime.png')
         plt.show()
         plt.close()
         
@@ -725,73 +739,6 @@ class Village:
         # with open(f'networks{self.time}.txt', 'w') as output:
         #     output.write(str(self.networks))
         
-    # def plot_simulation_results(self, file_name):
-    #     # Population over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.population_over_time, label='Population')
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Population')
-    #     plt.legend()
-    #     plt.title('Population Over Time')
-    #     plt.savefig(f"{file_name}_population.png")
-    #     plt.show()
-    #     plt.close()
-
-    #     # Occupied Land Capacity over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
-    #     plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--') 
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Land Capacity')
-    #     plt.legend()
-    #     plt.title('Land Capacity Over Time')
-    #     plt.savefig(f"{file_name}_land_capacity.png")
-    #     plt.show()
-    #     plt.close()
-
-    #     # Food Storage over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.food_storage_over_time, label='Food Storage')
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Food Storage')
-    #     plt.legend()
-    #     plt.title('Food Storage Over Time')
-    #     plt.savefig(f"{file_name}_food_storage.png")
-    #     plt.show()
-    #     plt.close()
-
-    #     # Average Fertility over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Average Household Fertility')
-    #     plt.legend()
-    #     plt.title('Average Fertility Over Time')
-    #     plt.savefig(f"{file_name}_avg_fertility.png")
-    #     plt.show()
-    #     plt.close()
-
-    #     # Average Age over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.average_age, label='Avg. Age')
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Average Age')
-    #     plt.legend()
-    #     plt.title('Average Age Over Time')
-    #     plt.savefig(f"{file_name}_avg_age.png")
-    #     plt.show()
-    #     plt.close()
-
-    #     # Average Life Span over time
-    #     plt.figure(figsize=(10, 6))
-    #     plt.plot(self.average_life_span, label='Avg. Life Span')
-    #     plt.xlabel('Time Step')
-    #     plt.ylabel('Average Life Span')
-    #     plt.legend()
-    #     plt.title('Average Life Span Over Time')
-    #     plt.savefig(f"{file_name}_avg_life_span.png")
-    #     plt.show()
-    #     plt.close()
 
     def get_agent_by_id(self, agent_id):
         for household in self.households:
@@ -939,7 +886,7 @@ class Village:
                 if land_data['fallow_timer'] <= 0:
                     land_data['fallow'] = False
                     print(f"Land plot {land_id} is no longer fallow.")
-        print('land types', self.land_types)
+        # print('land types', self.land_types)
 
     def notify_household_to_migrate(self, land_id):
         """Notify the household occupying the land to migrate."""

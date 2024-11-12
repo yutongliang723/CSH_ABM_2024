@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Village Simulation</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Global Styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        h1 {
+            font-size: 2em;
+            color: #4a90e2;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Container and Form Styling */
+        #container {
+            width: 90%;
+            max-width: 800px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        form {
+            display: grid;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 5px;
+            font-size: 1.1em;
+        }
+        
+        input[type="number"], input[type="checkbox"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #4a90e2;
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+        }
+
+        #loading {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #e67e22;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* Result Display */
+        #results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        /* Image Layout */
+        .result-grid {
+            display: grid;
+            gap: 15px;
+            grid-template-columns: repeat(2, 1fr);
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        /* Image Styling */
+        .result-image {
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Custom Sizes */
+        #simulationGif {
+            grid-column: 1 / -1;
+            width: 100%;
+            height: auto;
+        }
+
+        #simulationImage {
+            width: 100%;
+            height: auto;
+            grid-column: 1 / -1;
+        }
+
+        #giniImage {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Village Simulation</h1>
+        
+        <form id="simulationForm">
+            <label for="num_house">Number of Households:</label>
+            <input type="number" id="num_house" name="num_house" required>
+            
+            <label for="year">Years to Simulate:</label>
+            <input type="number" id="year" name="year" required>
+            
+            <label for="land_cells">Land Cells:</label>
+            <input type="number" id="land_cells" name="land_cells" required>
+            
+            <label for="prod_multiplier">Production Multiplier:</label>
+            <input type="number" step="0.1" id="prod_multiplier" name="prod_multiplier" required>
+            
+            <label for="fishing_discount">Fishing Discount:</label>
+            <input type="number" step="0.1" id="fishing_discount" name="fishing_discount" required>
+            
+            <label for="spare_food_enabled">Spare Food Enabled:</label>
+            <input type="checkbox" id="spare_food_enabled" name="spare_food_enabled">
+            
+            <label for="fallow_farming">Fallow Farming:</label>
+            <input type="checkbox" id="fallow_farming" name="fallow_farming">
+            
+            <button type="button" id="runButton">Run Simulation</button>
+            <button type="button" id="clearButton">Clear</button>
+        </form>
+        
+        <div id="loading">Running...</div>
+        
+        <div id="results">
+            <h2>Simulation Results</h2>
+            <div class="result-grid">
+                <img id="simulationGif" class="result-image" src="" alt="Simulation Animation">
+                <img id="simulationImage" class="result-image" src="" alt="Simulation Results">
+                <img id="giniImage" class="result-image" src="" alt="Gini Coefficient Over Time">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Run Simulation Button
+            $("#runButton").click(function() {
+                // Clear previous results and show "Running..."
+                $("#results").hide();
+                $("#loading").show();
+                
+                // Gather form data
+                const data = {
+                    num_house: $("#num_house").val(),
+                    year: $("#year").val(),
+                    land_cells: $("#land_cells").val(),
+                    prod_multiplier: $("#prod_multiplier").val(),
+                    fishing_discount: $("#fishing_discount").val(),
+                    spare_food_enabled: $("#spare_food_enabled").is(":checked") ? "true" : "false",
+                    fallow_farming: $("#fallow_farming").is(":checked") ? "true" : "false"
+                };
+                
+                // Make an AJAX POST request to run the simulation
+                $.ajax({
+                    url: "/run_simulation",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        // Update the images with cache-busting timestamps
+                        const timestamp = new Date().getTime();
+                        $("#simulationImage").attr("src", response.image_url + "?t=" + timestamp);
+                        $("#simulationGif").attr("src", response.animation_url + "?t=" + timestamp);
+                        $("#giniImage").attr("src", response.gini_url + "?t=" + timestamp);
+                        
+                        // Show the results and hide "Running..."
+                        $("#loading").hide();
+                        $("#results").show();
+                    },
+                    error: function(error) {
+                        console.error("Error running simulation:", error);
+                        $("#loading").hide();
+                        alert("Failed to run simulation. Check console for details.");
+                    }
+                });
+            });
+
+            // Clear Button
+            $("#clearButton").click(function() {
+                // Clear the images and hide results
+                $("#simulationImage").attr("src", "");
+                $("#simulationGif").attr("src", "");
+                $("#giniImage").attr("src", "");
+                $("#results").hide();
+                $("#loading").hide();
+            });
+        });
+    </script>
+</body>
+</html>

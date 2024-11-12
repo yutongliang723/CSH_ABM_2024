@@ -37,7 +37,8 @@ def generate_random_village(num_households, num_land_cells, vec1):
             'max_capacity': 10,
             'recovery_rate': 0.03,
             'fallow': False,      
-            'fallow_timer': 0
+            'fallow_timer': 0,
+            'fishing': random.random() < 0.3  # 30% chance of being True
         }
 
     households = []
