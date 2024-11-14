@@ -1,17 +1,18 @@
-# Agent-Based Model 2024
+# Agent-Based Model 2024 Version
+**Author**: Yutong Liang  
+**Supervisor**: Dániel Kondor​  
+**Topic**: Investigating Social Dynamics and Inequality in Neolithic Societies Through Agent-Based Modelling
+### Introduction
+The project aims to study the social dynamics in the neolithic time with Agent-Based Model.
 
 ### Current Progress
-
-Added a animation gif showing land capacity change and migration;  
-Added migration logic and family splitting;  
-Initialized social network connectivity and added distance calculation;  
-Implemented trading and marriages.  
-TODO: 
-- reciprocal social - getting free food from the public pool.
-- Debug/
+Agents (villagers) can farm, eat, involves birth and death, marriage, splitting out of their current household. On the household level, they can migrate to different area. Households can also trade with other households in exchange for longer-storage value instead of easily expired food. On the village level, it is possible to establish crop rotation system which requires each land to be fallowed every certain years. It is also possible to convert to fishing when a household's land is currently on fallow.
 
 ### Usage Manual
-Run the main.py or can create a jupyter notebook and copy-paste the main.py code. If using jupyter notebook, restarting the kernal is sometimes required.
+- Branch in the use: `main`
+- Run the main.py after configuring the parameters
+
+- Interface usage: so far, a simple simulation interface can be used locally. Please run the `interaction.py` and access the interface.
 
 ### Object Classes
 
