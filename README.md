@@ -298,7 +298,7 @@ We have experimented The simulation results for 500 years (500 iterations) are s
  </p>
 
 ## Open Question
-
+- Think about how I can add data science topic to the thesis because I have to show data science and economics field in my thesis to graduate. 
 - Model Validation
     - Çatalhöyük can be a neolithic site data point. However, we should try to look for the U.S. data as well.
 - How is wealth defined, and did a concept of wealth already exist in Neolithic society? Replace the Gini coefficient calculation.
