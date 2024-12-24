@@ -6,7 +6,14 @@
 The project aims to study the social dynamics in the neolithic time with Agent-Based Model.
 
 ### Current Progress
-Agents (villagers) can farm, eat, involves birth and death, marriage, splitting out of their current household. On the household level, they can migrate to different area. Households can also trade with other households in exchange for longer-storage value instead of easily expired food. On the village level, it is possible to establish crop rotation system which requires each land to be fallowed every certain years. It is also possible to convert to fishing when a household's land is currently on fallow.
+Agents (villagers) can farm, eat, involves birth and death, marriage, splitting out of their current household. On the household level, they can migrate to different area. Households can also trade with other households in exchange for longer-storage value instead of easily expired food. On the village level, it is possible to establish crop rotation system which requires each land to be fallowed every certain years. It is also possible to convert to fishing when a household's land is currently on fallow.  
+
+In `interaction.py`, I’ve created a basic local website for parameterized visualization. You can run the file to experiment with different parameters directly in your web browser.
+
+![plot](pics/web_abm_test.png)
+<p style="text-align: center;">
+Visulization Website Preview(Local Test Version)</p>
+
 
 ### Usage Manual
 - Branch in the use: `main`
@@ -287,5 +294,13 @@ We have experimented The simulation results for 500 years (500 iterations) are s
 
  ![](static/village_simulation.gif)
 
-<p style="text-align: center;"> Figure 5. Land Capacity Change Over Time
+<p style="text-align: center;"> Figure 5. Land Capacity Change Over Time Sample
  </p>
+
+## Open Question
+
+- Model Validation
+    - Çatalhöyük can be a neolithic site data point. However, we should try to look for the U.S. data as well.
+- How is wealth defined, and did a concept of wealth already exist in Neolithic society? Replace the Gini coefficient calculation.
+- Incorporating Malthusian and Boserupian models: Should the models simply replicate the theories, or should the theories serve to validate the models?
+- Generalize "social norm" or try to find out the robust why to establish the social norm concept in the model.
