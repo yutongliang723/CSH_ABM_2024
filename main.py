@@ -12,9 +12,10 @@ random.seed(10)
 # if len(args) > 1:
 #     random.seed(int(args[1]))
 
-num_house = 56
-year = 20
-land_cells = 56
+num_house = 56 # number of initial houses
+year = 20 # simulation years
+land_cells = 56 # initial amount of land cells
+
 vec1_instance = Vec1()
 village = utils.generate_random_village(num_house, land_cells, vec1_instance)
 village.initialize_network()

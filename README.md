@@ -65,7 +65,7 @@ A key deviation in this project is the use of constant initial growth for resour
 
 Model I simulates agent-based interactions between population and resource dynamics in a Neolithic village. The village consists of settlers farming land divided into cells, with each cell farmed by one settler. Resources are distributed communally, and farmers migrate annually to maximize efficiency, using only the minimum land necessary to meet the village’s needs. Land cells are depleted after use but recover annually. Population growth follows a logistic model, but external death rates due to shocks or diseases are introduced.
 
-Key Equations:
+**Key Equations**:
 
 1. Population Growth:
 ```math
@@ -100,6 +100,9 @@ The simulation revealed that population and resource capacity converge to a stea
 
 ![plot](pics/before_leslie.png)
 
+<p style="text-align: center;">
+Figure 1. Model I Simulation Results</p>
+
 
 ### Alternative Approach: Leslie Matrix
 
@@ -110,6 +113,35 @@ N_{t+1} = L \cdot N_t
 ```
 
 where $L$ is the Leslie matrix defining fertility and survival rates, and $N_t$ is the population vector. The method accounts for ageing and fertility, ensuring realistic population projections.
+
+```math
+\begin{bmatrix}
+N_{0, t+1} \\
+N_{1, t+1} \\
+N_{2, t+1} \\
+\vdots \\
+N_{n, t+1}
+\end{bmatrix}
+=
+\begin{bmatrix}
+N_{0, t} \\
+N_{1, t} \\
+N_{2, t} \\
+\ldots \\
+N_{n, t}\\
+\end{bmatrix}
+\cdot
+\begin{bmatrix}
+f_0 & f_1 & f_2 & \ldots & f_{n-1} & f_n \\
+p_0 & 0 & 0 & \ldots & 0 & 0 \\
+0 & p_1 & 0 & \ldots & 0 & 0 \\
+0 & 0 & p_2 & \ldots & 0 & 0 \\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+0 & 0 & 0 & \ldots & p_{n-1} & 0 \\
+0 & 0 & 0 & \ldots & 0 & p_n \\
+\end{bmatrix}
+
+```
 
 ### Model II: Population Update with Leslie Matrix
 
@@ -123,10 +155,10 @@ N_{t+1} = L \cdot N_t
 
 Where $L$ is the Leslie matrix, and $N_t$ is the population vector at time $t$. Food availability introduces feedback, ensuring population growth aligns with resource constraints.
 
-Key Equations and Features
+**Key Equations and Features**
 
-•	Carrying capacity convergence and population growth now follow a sigmoid curve, reaching a steady state with a ￼-ratio of 0.62.  
-•	Population updates use a binomial distribution to ensure integer-based survival and birth outcomes:
+- 	Carrying capacity convergence and population growth now follow a sigmoid curve, reaching a steady state with a ￼-ratio of 0.62.  
+- 	Population updates use a binomial distribution to ensure integer-based survival and birth outcomes:
 ```math
 P(X = k) = \binom{n}{k} \cdot p^k \cdot (1 - p)^{n - k}
 ```
@@ -136,13 +168,14 @@ This approach preserves the discrete nature of populations and avoids fractional
 Figure 2 demonstrates more realistic population dynamics, where survival probabilities for each age class introduce natural volatility, reflecting empirical human behavior more accurately than Model I.
 
 ![plot](pics/fig4.png)
-Figure 2. Model II simulation (without the concept of family)
+<p style="text-align: center;">
+Figure 2. Model II simulation (without the concept of family)</p>
 
 ### Model III: Introducing Families in a Sophisticated Society
 
 Model III organizes agents into family units rather than communal groups. Families independently manage food and migration, and they split when resource demands exceed a threshold (e.g., 5 units). This approach emulates realistic societal dynamics, where resource management is family-driven, not communal.
 
-Key features:  
+**Key features**   
 	1.	Families migrate if food supply is insufficient or new land is available.  
 	2.	Family splitting occurs when size exceeds the threshold, redistributing members into new units.  
 	3.	Population updates use a scaled Leslie matrix adjusted by food availability ($z$):
@@ -153,8 +186,8 @@ N_{t+1} = L(z) \cdot N_t
 
 
 Here, $z$ scales fertility and survival probabilities:  
-	•$z > 1$: Increased growth rate (positive signal).  
-	•$z < 1$: Reduced fertility (negative signal).
+	- $z > 1$: Increased growth rate (positive signal).  
+	- $z < 1$: Reduced fertility (negative signal).
 
 4.	Land cell capacity follows equilibrium dynamics:
 
@@ -164,23 +197,23 @@ K^* = \frac{K_{\text{max}}}{c + a}
 
 ```
 
-Where $K^*$ is the effective carrying capacity, ￼$K_{\text{max}}$ is the maximum capacity, and $c, a$ are scaling factors.
+Where $K^*$ is the effective carrying capacity, $K_{\text{max}}$ is the maximum capacity, and $c, a$ are scaling factors.
 
 Simulation Results
 
 1.	Population Dynamics:  
-	•	Model III exhibits high oscillations and slower population growth compared to communal Model II.  
-	•	Population-resource curves show inverse correlation: rapid population expansion depletes resources, leading to slowdowns or declines.
+	- 	Model III exhibits high oscillations and slower population growth compared to communal Model II.  
+	- 	Population-resource curves show inverse correlation: rapid population expansion depletes resources, leading to slowdowns or declines.
 	
 2.	Population Margins:  
-	•	Model II stabilizes with a population margin of ~100 after 700 years ($z = 0.62$).  
-	•	Model III achieves only ~50 margin with a non-converging $z$ around 1.25.
+	- 	Model II stabilizes with a population margin of ~100 after 700 years ($z = 0.62$).  
+	- 	Model III achieves only ~50 margin with a non-converging $z$ around 1.25.
 	
 3.	Land Usage:
 	
-    •	Despite low land occupation rates, population growth remains slow due to resource limitations.
+    - 	Despite low land occupation rates, population growth remains slow due to resource limitations.
 
-Interpretation
+**Interpretation**
 
 The oscillatory behavior replicates a Malthusian trap, where population growth is constrained by resource availability. Sustained oscillations suggest limited expansion unless technological advancements (e.g., industrial agriculture) increase productivity.
 
@@ -195,12 +228,19 @@ In 2024, the model underwent significant restructuring to transition from semi-o
 
 #### Network Connectivity
 
-The concept of a social network is integrated into the model, where each household represents a node, and connections (links) form based on geographical proximity and social interactions. Households establish or strengthen links through activities such as:  
-	•	Trading: Exchange of food and luxury goods increases connectivity.  
-	•	Marriage: Union between individuals forms permanent ties between households.  
-	•	Migration: Relocation alters the network structure by adding or removing connections.  
+The concept of a social network is integrated into the model, where each household represents a node, and connections (links) form based on geographical proximity and social interactions. Households establish or strengthen links through activities such as:   
+
+- 	**Trading**: Exchange of food and luxury goods increases connectivity.    
+- 	**Marriage**: Union between individuals forms permanent ties between households.  
+- 	**Migration**: Relocation alters the network structure by adding or removing connections.  
 
 Households may also disappear from the network if all members die. The dynamic network is recalibrated annually, reflecting changes in physical location and social activity levels.
+
+An network evolving example for a 2000 year simulation is showen in Figure 2.
+
+![plot](pics/network_pics.png)
+<p style="text-align: center;"> Figure 2. Network Clustering Changes with Gephi​
+ </p>
 
 #### Trading and Luxury Goods
 
@@ -212,8 +252,8 @@ In this model, luxury goods are introduced as a distinct resource category along
 
 Luxury goods are primarily accessible to households with agricultural output exceeding nutritional needs. Excess food is exchanged for luxury goods, while surplus food may be redistributed as charitable donations to households in need (this feature can be toggled). Once the village’s initial luxury goods supply is depleted, households engage in peer-to-peer trading, facilitated by their network connectivity. Trading dynamics operate as follows:
   
-•	Demand-Supply Groups: Households with surplus food seek luxury goods, while those lacking food offer luxury goods in exchange.  
-•	Trade Probability: Trade likelihood is proportional to the connectivity strength between two households.  
+- 	Demand-Supply Groups: Households with surplus food seek luxury goods, while those lacking food offer luxury goods in exchange.  
+- 	Trade Probability: Trade likelihood is proportional to the connectivity strength between two households.  
 
 #### Marriage Dynamics
 
@@ -221,8 +261,8 @@ To refine population modeling, the Leslie matrix is expanded to include gender-b
  
 1.	Marriage Probability: Each individual has a probability of marrying, influenced by network connectivity and household characteristics.  
 2.	Post-Marriage Dynamics:  
-•	The female spouse relocates to the male household, transferring a dowry.  
-•	Married couples can contribute to population growth according to age-specific fertility rates in the Leslie matrix.  
+- 	The female spouse relocates to the male household, transferring a dowry.  
+- 	Married couples can contribute to population growth according to age-specific fertility rates in the Leslie matrix.  
 3.	Unmarried Agents: Individuals who do not marry have zero fertility probability, halting population growth from this group.  
 
 This mechanism introduces more realistic social dynamics and enables investigations into the role of marriage in population stability and inequality.
@@ -231,9 +271,21 @@ This mechanism introduces more realistic social dynamics and enables investigati
 
 To simulate sustainable agricultural practices, Model IV Plus implements a fallow system where lands must rest for five years to recover fertility. Households can only utilize a portion of their assigned lands annually, leading to slower initial population growth due to reduced agricultural productivity.
 
-To mitigate the slowdown, a fishing season is introduced during fallow periods. Households engage in fishing to supplement their food supply, stabilizing growth rates. This addition reflects adaptive strategies in pre-industrial societies:  
+To mitigate the slowdown, a "fishing season" is introduced during fallow periods. Assuming ample fishing resources for certain selected area, households engage in fishing to supplement their food supply, stabilizing growth rates. This addition reflects adaptive strategies in pre-industrial societies:  
 
 1.	Land Use Cycle: Households alternate between cultivation and fallow periods, ensuring long-term soil health.  
 2.	Fishing Contribution: Fishing provides an alternative food source, contributing to both survival and trade potential.  
 
 This dual-resource strategy leads to a more realistic simulation of resource management in early societies, balancing agricultural limitations with alternative livelihoods.
+
+We have experimented The simulation results for 500 years (500 iterations) are shown as figure 4.  
+
+![plot](static/simulation_500.png)
+<p style="text-align: center;"> Figure 4. Simulation Results Sample
+ </p>
+
+
+ ![](static/village_simulation.gif)
+
+<p style="text-align: center;"> Figure 5. Land Capacity Change Over Time
+ </p>
