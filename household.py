@@ -6,16 +6,16 @@ import itertools
 
 class Household:
     _id_iter = itertools.count(start = 1)
-    def __init__(self, members, location, food_storage, luxury_good_storage):
+    def __init__(self, members, location, food_storage, luxury_good_storage,food_expiration_steps):
         self.id = next(Household._id_iter)
         print('New household: {}'.format(self.id))
         self.members = members
         self.location = location  
         self.food_storage = []
         self.food_storage_timestamps = []
-        self.luxury_good_storage = 0
+        self.luxury_good_storage = luxury_good_storage
         self.current_step = 0
-        self.food_expiration_steps = 3
+        self.food_expiration_steps = food_expiration_steps
         
         
     
@@ -94,7 +94,6 @@ class Household:
         """Simulate food consumption by household members."""
         # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
         self.food_storage.sort(key=lambda x: x[1])
-        # remove expired food -- TODO: I don't think it is needed here !!
         self.update_food_storage()
         total_available_food = sum(amount for amount, _ in self.food_storage)
         if not len(self.food_storage) == 0:
@@ -121,7 +120,7 @@ class Household:
             # print(f"Member {member.household_id} in Household {self.id} died.")
             pass
     
-    def split_household(self, village):
+    def split_household(self, village, food_expiration_steps):
         """Handle the splitting of a household when it grows too large."""
         
         empty_land_cells = [loc for loc, data in village.land_types.items() if data['occupied'] == False and data['fallow'] == False]
@@ -129,7 +128,6 @@ class Household:
         if empty_land_cells:
             new_household_members_ids = set()
             random.shuffle(self.members)
-            # TODO: can pick randomly
 
             members_to_leave = len(self.members) // 2
             mixed_members = []
@@ -171,7 +169,8 @@ class Household:
                 food_storage=[(new_food_storage, 0)],
                 luxury_good_storage=new_luxury_good_storage,
                 members=new_household_members,
-                location = None
+                location = None,
+                food_expiration_steps = food_expiration_steps
             )
             # print(new_household_members)
             for m in new_household.members:
@@ -224,7 +223,7 @@ class Household:
         total_luxury = self.luxury_good_storage
         return total_food + total_luxury
     
-    def get_wealth(self):
+    def get_wealth(self, exchange_rate):
         food = sum(amount for amount, _ in self.food_storage)
         luxury = self.luxury_good_storage
-        return food + 10 * luxury
+        return food + exchange_rate * luxury # 10

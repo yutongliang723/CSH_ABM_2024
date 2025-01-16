@@ -16,29 +16,29 @@ def generate_random_agent(household_id, vec1):
     fertility = m0[age]
     return Agent(age, gender, household_id, vec1, fertility)
 
-def generate_random_household(num_members, location, vec1):
+def generate_random_household(num_members, location, vec1, food_expiration_steps):
     """Generate a random household with a specified number of agents."""
     food_storage = num_members
     luxury_good_storage = 0
-    new_household = Household([], location, food_storage, luxury_good_storage)
+    new_household = Household([], location, food_storage, luxury_good_storage, food_expiration_steps)
     new_household.members = [generate_random_agent(new_household.id, vec1) for _ in range(num_members)]
     
     return new_household
 
-def generate_random_village(num_households, num_land_cells, vec1):
+def generate_random_village(num_households, num_land_cells, vec1, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period):
     """Generate a village with a specified number of households and land cells."""
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}
     for i in range(num_land_cells):
         location = (i // grid_size, i % grid_size)
         land_types[location] = {
-            'quality': 5,
+            'quality': initial_quality,
             'occupied': False,
-            'max_capacity': 10,
-            'recovery_rate': 0.03,
+            'max_capacity': land_max_capacity,
+            'recovery_rate': land_ecovery_rate,
             'fallow': False,      
             'fallow_timer': 0,
-            'fishing': random.random() < 0.3  # 30% chance of being True
+            'fishing': random.random() < fish_chance  # 30% chance of being True
         }
 
     households = []
@@ -48,10 +48,10 @@ def generate_random_village(num_households, num_land_cells, vec1):
             location = random.choice(list(land_types.keys()))
         land_types[location]['occupied'] = True
         household = generate_random_household(# next(Household._id_iter),
-            random.randint(5, 10), location, vec1)
+            random.randint(5, 10), location, vec1, food_expiration_steps)
         households.append(household)
 
-    return Village(households, land_types)
+    return Village(households, land_types, food_expiration_steps, fallow_period)
 
 def print_village_summary(village):
     """Print a summary of the village, including details of each household."""
