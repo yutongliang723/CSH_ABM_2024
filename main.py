@@ -24,10 +24,10 @@ marriage_from = 10
 marriage_to = 50
 bride_price_ratio=  0.5 # by changing it up, I haven't observed any changes yet
 land_ecovery_rate = 0.01 # initial 0.03
-land_max_capacity = 10 # initial 10
+land_max_capacity = 20 # initial 10
 initial_quality = 5 # initial 5
 fish_chance = 0.3 # initial 0.3
-exchange_rate = 30 # luxury to food # by changing it from 10 to 30, the gini changed a lot
+exchange_rate = 10 # luxury to food # by changing it from 10 to 30, the gini changed a lot
 luxury_good_storage = 0 # initial
 storage_ratio_low = 0.2
 storage_ratio_high = 1.5
@@ -35,7 +35,7 @@ land_capacity_low = 1
 max_member = 5
 excess_food_ratio = 2 # initial 2
 trade_back_start = 50
-lux_per_year = 5
+lux_per_year = 3 # initial 5 lowering it lower the gini coefficient
 
 vec1_instance = Vec1()
 village = utils.generate_random_village(num_house, land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period)
@@ -46,4 +46,4 @@ for _ in range(year):
     utils.print_village_summary(village)
     
 village.plot_simulation_results(file_name = f"simulation_{year}")
-village.generate_animation(grid_dim=math.ceil(math.sqrt(land_cells)))
+# village.generate_animation(grid_dim=math.ceil(math.sqrt(land_cells)))

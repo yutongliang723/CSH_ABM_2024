@@ -44,7 +44,7 @@ def run_simulation():
 
     # Initialize the simulation environment
     vec1_instance = utils.Vec1()
-    village = utils.generate_random_village(num_house, land_cells, vec1_instance)
+    village = utils.generate_random_village(num_house, land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period)
     village.initialize_network()
     village.initialize_network_relationship()
     
