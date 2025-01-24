@@ -130,7 +130,6 @@ class Household:
             random.shuffle(self.members)
 
             members_to_leave = len(self.members) // 2
-            mixed_members = []
 
             count = 0
             for agent in self.members:
@@ -152,8 +151,10 @@ class Household:
             for member in new_household_members:
                 if member in self.members:
                     self.remove_member(member)
+
                 new_household_members_ids.remove(member.id)
             
+                        
             if len(new_household_members_ids) > 0:
                 # print(new_household_members_ids)
                 raise BaseException('Agent to split not in household {}!'.format(self.id))
@@ -190,7 +191,8 @@ class Household:
             new_household.create_network_connectivity(village, village.network_relation, False,
                 lambda x, y: 0)
             # print(f'Household {self.id} splitted to {new_household.id}')
-
+        else:
+            print('ops, no empty land cells to split')
 
     def create_network_connectivity(self, village, network, include_luxury_goods, f):
         if self.id not in network:

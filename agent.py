@@ -82,7 +82,7 @@ class Agent:
             return work_output
         return work_output
     
-    def age_and_die(self, household, village, z):
+    def age_and_die(self, household, village, z, max_member, fertility_scaler):
 
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
@@ -93,7 +93,7 @@ class Agent:
         age_index = self.get_age_group_index()
         
         survival_probability = self.vec1.pstar[age_index] * sp.gdtr(1.0 / self.vec1.mortscale, self.vec1.mortparms[age_index], z)
-        fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z) * 5
+        fertility_probability = self.vec1.mstar[age_index] * sp.gdtr(1.0 / self.vec1.fertscale, self.vec1.fertparm, z) * fertility_scaler
         
         if random.random() > survival_probability:
             self.is_alive = False
@@ -103,9 +103,12 @@ class Agent:
             return
         
         self.fertility = fertility_probability
-        if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married':
-            if len(household.members) + len(self.newborn_agents) < 20: # or village.is_land_available():
+        # print(village.land_types.values())
+        if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married' and village.is_land_available() is True:
+            if len(household.members) + len(self.newborn_agents) < max_member: 
                 self.reproduce()
+                print('reproduced')
+                print('village.is_land_available()', village.is_land_available())
     
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""

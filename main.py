@@ -12,10 +12,10 @@ random.seed(10)
 # if len(args) > 1:
 #     random.seed(int(args[1]))
 
-num_house = 56 # number of initial houses
+num_house = 5 # number of initial houses
 land_cells = 56 # initial amount of land cells
-year = 1000 # simulation years
-prod_multiplier = 1
+year = 1500 # simulation years
+prod_multiplier = 3
 fishing_discount = 1
 fallow_ratio = 50 # % of the total land
 fallow_period = 5 # years
@@ -23,7 +23,7 @@ food_expiration_steps = 2 # initial 3, by changing it from 3 to 2, everything ch
 marriage_from = 10
 marriage_to = 50
 bride_price_ratio=  0.5 # by changing it up, I haven't observed any changes yet
-land_ecovery_rate = 0.01 # initial 0.03
+land_ecovery_rate = 0.03 # initial 0.03
 land_max_capacity = 20 # initial 10
 initial_quality = 5 # initial 5
 fish_chance = 0.3 # initial 0.3
@@ -36,14 +36,16 @@ max_member = 5
 excess_food_ratio = 2 # initial 2
 trade_back_start = 50
 lux_per_year = 3 # initial 5 lowering it lower the gini coefficient
+land_depreciate_factor = 0.01 # very important, when it was 0.01, the population died after 1000 years
+fertility_scaler = 4 # very important, society cannot live up to 1000 yr if it is below 4 or 3. however, then the accumulative population is too much
 
 vec1_instance = Vec1()
 village = utils.generate_random_village(num_house, land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period)
 village.initialize_network()
 village.initialize_network_relationship()
 for _ in range(year): 
-    village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, spare_food_enabled=False, fallow_farming = True)
-    utils.print_village_summary(village)
+    village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, land_depreciate_factor = land_depreciate_factor, fertility_scaler = fertility_scaler, spare_food_enabled=False, fallow_farming = True)
+    # utils.print_village_summary(village)
     
 village.plot_simulation_results(file_name = f"simulation_{year}")
-# village.generate_animation(grid_dim=math.ceil(math.sqrt(land_cells)))
+village.generate_animation(grid_dim=math.ceil(math.sqrt(land_cells)))

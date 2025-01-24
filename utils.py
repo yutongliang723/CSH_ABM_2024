@@ -6,6 +6,7 @@ from agent import Vec1
 import scipy.special as sp
 import math
 import uuid
+
 random.seed(10)
 def generate_random_agent(household_id, vec1):
 
@@ -48,7 +49,7 @@ def generate_random_village(num_households, num_land_cells, vec1, food_expiratio
             location = random.choice(list(land_types.keys()))
         land_types[location]['occupied'] = True
         household = generate_random_household(# next(Household._id_iter),
-            random.randint(5, 10), location, vec1, food_expiration_steps)
+            random.randint(0, 5), location, vec1, food_expiration_steps)
         households.append(household)
 
     return Village(households, land_types, food_expiration_steps, fallow_period)
@@ -64,13 +65,14 @@ def print_village_summary(village):
         food = sum(amount for amount, _ in household.food_storage)
         need = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
         print(f"  Food Storage: {food}, Luxury Good Storage: {household.luxury_good_storage}, Needs: {need}")
-        # print(f"Household ID: {household.members}, Location: {household.location}, Land Quality: {household.land_quality}")
+        print(f"Household ID: {household.members}, Location: {household.location}, Land Quality: {household.land_quality}")
         
         if household.members:
             print(f"  Members:")
             for member in household.members:
 
                 print(f"    Agent - Age: {member.age}, Gender: {member.gender}, Alive: {member.is_alive}, Fertility Prob: {member.fertility}， Marital Status: {member.marital_status}")
+                pass
         else:
             print(f"  No members in this household.")
 
