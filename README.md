@@ -6,14 +6,15 @@
 The project aims to study the social dynamics in the neolithic time with Agent-Based Model.
 
 ### Current Progress
+A parameter experiment runner file `running.ipynb` is built to systematically do parameter testing.
+
 Agents (villagers) can farm, eat, involves birth and death, marriage, splitting out of their current household. On the household level, they can migrate to different area. Households can also trade with other households in exchange for longer-storage value instead of easily expired food. On the village level, it is possible to establish crop rotation system which requires each land to be fallowed every certain years. It is also possible to convert to fishing when a household's land is currently on fallow.  
 
-In `interaction.py`, I’ve created a basic local website for parameterized visualization. You can run the file to experiment with different parameters directly in your web browser.
+In `interaction.py`, I’ve created a basic local website for parameterized visualization. You can run the file to experiment with different parameters directly in your web browser. This file is currently undergoing construction as the parameters got changed...
 
-![plot](pics/web_abm_test.png)
+![plot](documents_archive/pics/web_abm_test.png)
 <p style="text-align: center;">
 Visulization Website Preview(Local Test Version)</p>
-
 
 ### Usage Manual
 - Branch in the use: `main`
@@ -105,7 +106,7 @@ with $M$ as the total number of land cells.
 
 The simulation revealed that population and resource capacity converge to a steady state, but growth is constrained due to overlapping controls from the logistic equation and migration mechanism. Modifying the population growth model resolves this conflict, allowing sustainable growth.
 
-![plot](pics/before_leslie.png)
+![plot](documents_archive/pics/before_leslie.png)
 
 <p style="text-align: center;">
 Figure 1. Model I Simulation Results</p>
@@ -174,7 +175,7 @@ This approach preserves the discrete nature of populations and avoids fractional
 
 Figure 2 demonstrates more realistic population dynamics, where survival probabilities for each age class introduce natural volatility, reflecting empirical human behavior more accurately than Model I.
 
-![plot](pics/fig4.png)
+![plot](documents_archive/pics/fig4.png)
 <p style="text-align: center;">
 Figure 2. Model II simulation (without the concept of family)</p>
 
@@ -245,7 +246,7 @@ Households may also disappear from the network if all members die. The dynamic n
 
 An network evolving example for a 2000 year simulation is showen in Figure 2.
 
-![plot](pics/network_pics.png)
+![plot](documents_archive/pics/network_pics.png)
 <p style="text-align: center;"> Figure 2. Network Clustering Changes with Gephi​
  </p>
 
@@ -287,7 +288,7 @@ This dual-resource strategy leads to a more realistic simulation of resource man
 
 We have experimented The simulation results for 500 years (500 iterations) are shown as figure 4.  
 
-![plot](static/simulation_500.png)
+![plot](documents_archive/static/simulation_500.png)
 <p style="text-align: center;"> Figure 4. Simulation Results Sample
  </p>
 
