@@ -43,6 +43,10 @@ def generate_random_village(num_households, num_land_cells, vec1, food_expiratio
         }
 
     households = []
+
+    new_village = Village(households, land_types, food_expiration_steps, fallow_period)
+    new_village.population_accumulation.append(0)
+
     for i in range(num_households):
         location = random.choice(list(land_types.keys()))
         while land_types[location]['occupied']:
@@ -51,8 +55,13 @@ def generate_random_village(num_households, num_land_cells, vec1, food_expiratio
         household = generate_random_household(# next(Household._id_iter),
             random.randint(0, 5), location, vec1, food_expiration_steps)
         households.append(household)
+        new_village.population_accumulation[0] += len(household.members)
+    
+    new_village.land_types = land_types
+    new_village.households = households
 
-    return Village(households, land_types, food_expiration_steps, fallow_period)
+    return new_village
+
 
 def print_village_summary(village):
     """Print a summary of the village, including details of each household."""

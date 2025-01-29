@@ -8,7 +8,7 @@ class Household:
     _id_iter = itertools.count(start = 1)
     def __init__(self, members, location, food_storage, luxury_good_storage,food_expiration_steps):
         self.id = next(Household._id_iter)
-        print('New household: {}'.format(self.id))
+        # print('New household: {}'.format(self.id))
         self.members = members
         self.location = location  
         self.food_storage = []
@@ -64,7 +64,7 @@ class Household:
                     work_output = member.work() 
                     # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
                     production_amount += work_output * land_quality * prod_multiplier
-            print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
+            # print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
         self.add_food(production_amount)
         self.update_food_storage()
         
@@ -75,7 +75,7 @@ class Household:
         Does not keep track of the expiry of the removed food.
         Returns the actual amount of food removed (can be less than amount, if storage is too low).
         """
-        print(self.food_storage)
+        # print(self.food_storage)
         for i in range(len(self.food_storage)):
             removed = 0
             if self.food_storage[i][0] > amount:
@@ -99,7 +99,7 @@ class Household:
         if not len(self.food_storage) == 0:
 
             consumed = self.remove_food(total_food_needed)
-            print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
+            # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
         else: village.remove_household(self)
 
 
@@ -185,14 +185,15 @@ class Household:
             village.households.append(new_household)
 
             # new_household.create_network_connectivity_household_distance(village)
-            print(f'Household {self.id} splitted to {new_household.id}')
+            # print(f'Household {self.id} splitted to {new_household.id}')
             new_household.create_network_connectivity(village, village.network, True,
                 lambda x, y: max(0, 1/village.get_distance(x.location, y.location)))
             new_household.create_network_connectivity(village, village.network_relation, False,
                 lambda x, y: 0)
             # print(f'Household {self.id} splitted to {new_household.id}')
         else:
-            print('ops, no empty land cells to split')
+            # print('ops, no empty land cells to split')
+            pass
 
     def create_network_connectivity(self, village, network, include_luxury_goods, f):
         if self.id not in network:
