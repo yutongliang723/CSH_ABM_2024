@@ -8,6 +8,8 @@ import utils
 import random
 import math
 import sys
+from IPython.display import clear_output
+
 random.seed(10)
 # args = sys.argv
 # if len(args) > 1:
@@ -22,3 +24,4 @@ for _ in range(year):
     
 village.plot_simulation_results(file_name)
 village.generate_animation(file_path, grid_dim=math.ceil(math.sqrt(land_cells)))
+clear_output()
