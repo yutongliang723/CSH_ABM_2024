@@ -407,8 +407,8 @@ class Village:
             total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, spare_food_enabled=False, fallow_farming = False):
-        
+    def run_simulation_step(self, vec1, pars, spare_food_enabled=False, fallow_farming = False):
+    
         """Run a single simulation step (year)."""
         
         
@@ -422,7 +422,7 @@ class Village:
 
         total_new_born = 0
         for household in self.households:
-            household.produce_food(self, vec1, prod_multiplier, fishing_discount)
+            household.produce_food(self, vec1, pars.prod_multiplier, pars.fishing_discount)
             
             dead_agents = []
             newborn_agents = []
@@ -440,7 +440,7 @@ class Village:
                 agent_food_needed = agent.vec1.rho[agent.get_age_group_index()]
                 z = total_food * agent_food_needed / total_food_needed
                 z = 1
-                agent.age_and_die(household, self, z, max_member, fertility_scaler)
+                agent.age_and_die(household, self, z, pars.max_member, pars.fertility_scaler)
                 
                 if not agent.is_alive:
                     dead_agents.append(agent)
@@ -476,29 +476,29 @@ class Village:
             land_quality = self.land_types[household.location]['quality']
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-            if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
+            if total_food_storage < pars.storage_ratio_high * total_food_needed and total_food_storage > pars.storage_ratio_low * total_food_needed and land_quality < pars.land_capacity_low:
                 # print(f'Poor - Migration qualify for {household.id}')
 
                 self.migrate_household(household)
-            self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio) # if choose to comment out this line, please also comment out 
+            self.propose_marriage(household, pars.marriage_from, pars.marriage_to, pars.bride_price_ratio) # if choose to comment out this line, please also comment out 
 
-            if len(household.members) > max_member:
-                household.split_household(self, food_expiration_steps)
+            if len(household.members) > pars.max_member:
+                household.split_household(self, pars.food_expiration_steps)
             else: 
                 pass
             self.remove_empty_household(household)
             household.advance_step()
             
-        self.update_tracking_variables(exchange_rate)
+        self.update_tracking_variables(pars.exchange_rate)
         self.track_land_usage()
-        self.update_land_capacity(land_depreciate_factor)        
-        self.manage_luxury_goods(exchange_rate, excess_food_ratio)
-        self.trading(excess_food_ratio, trade_back_start)
+        self.update_land_capacity(pars.land_depreciate_factor)        
+        self.manage_luxury_goods(pars.exchange_rate, pars.excess_food_ratio)
+        self.trading(pars.excess_food_ratio, pars.trade_back_start)
         if fallow_farming:
-            self.update_fallow_land(fallow_ratio, fallow_period)
+            self.update_fallow_land(pars.fallow_ratio, pars.fallow_period)
         self.update_network_connectivity()
         self.time += 1
-        self.luxury_goods_in_village += lux_per_year        
+        self.luxury_goods_in_village += pars.lux_per_year        
     
     def update_land_capacity(self, land_depreciate_factor):
         """Update the land quality for each land cell in the village."""
