@@ -14,7 +14,7 @@ This is designed to explore what will happen when there are abundant food for th
 
 `land_constant` branch:
 
-![plot](land_run_results/30-01-2025&21-28-42/simulation_plots.svg)
+![plot](land_run_results/30-01-2025&21-54-32/simulation_plots.svg)
 
 `main` branch:
 ![plot](documents_archive/simulation_plots.svg)
