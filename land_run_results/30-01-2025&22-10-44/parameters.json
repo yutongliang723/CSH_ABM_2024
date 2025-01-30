@@ -1,5 +1,5 @@
 {
-    "year": 1000, 
+    "year": 1000,
     "num_house": 50,
     "land_cells": 56,
     "prod_multiplier": 3,
@@ -12,7 +12,7 @@
     "bride_price_ratio": 0.5,
     "land_ecovery_rate": 0.03,
     "land_max_capacity": 20,
-    "initial_quality": 20, 
+    "initial_quality": 20,
     "fish_chance": 0.3,
     "exchange_rate": 10,
     "luxury_good_storage": 0,
