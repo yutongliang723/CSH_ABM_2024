@@ -524,11 +524,12 @@ class Village:
                 # land['household_id'] = None
                 # # print(f"Land at {location} remains unoccupied.")            
 
-            new_quality = (
-                        land_quality +
-                        land_recovery_rate * (land_max_capacity - land_quality) 
-                        - farming_intensity ** 2 * land_quality * land_depreciate_factor # 0.01 # this 0.01 is an important factor that influence everything, can be changed
-                    )
+            # new_quality = (
+            #             land_quality +
+            #             land_recovery_rate * (land_max_capacity - land_quality) 
+            #             - farming_intensity ** 2 * land_quality * land_depreciate_factor # 0.01 # this 0.01 is an important factor that influence everything, can be changed
+            #         )
+            new_quality = land_quality
             land['quality'] = max(0, min(new_quality, land_max_capacity))
             # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
 

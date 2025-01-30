@@ -19,7 +19,7 @@ village = utils.generate_random_village(num_house, land_cells, vec1_instance, fo
 village.initialize_network()
 village.initialize_network_relationship()
 for _ in range(year): 
-    village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, land_depreciate_factor = land_depreciate_factor, fertility_scaler = fertility_scaler, spare_food_enabled=False, fallow_farming = True)
+    village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, land_depreciate_factor = land_depreciate_factor, fertility_scaler = fertility_scaler, spare_food_enabled=False, fallow_farming = False) # no fallow
     # utils.print_village_summary(village)
     
 village.plot_simulation_results(file_name)
