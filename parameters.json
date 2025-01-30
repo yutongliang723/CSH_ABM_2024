@@ -1,12 +1,12 @@
 {
-    "year": 1000, 
+    "year": 1000,
     "num_house": 50,
     "land_cells": 56,
     "prod_multiplier": 3,
     "fishing_discount": 1,
     "fallow_ratio": 50,
     "fallow_period": 5,
-    "food_expiration_steps": 2,
+    "food_expiration_steps": 3,
     "marriage_from": 10,
     "marriage_to": 50,
     "bride_price_ratio": 0.5,
@@ -24,7 +24,7 @@
     "trade_back_start": 50,
     "lux_per_year": 3,
     "land_depreciate_factor": 0.01,
-    "fertility_scaler": 2,
+    "fertility_scaler": 5,
     "file_path": "simulation.gif",
     "file_name": "simulation_plots.svg"
 }
