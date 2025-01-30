@@ -11,3 +11,10 @@ This is designed to explore what will happen when there are abundant food for th
 ### Result Log
 
 `land_constant` 30-01-2025&21-28-42 can be compared with `main` 29-01-2025&23-47-09. The only difference is the land quality setting.
+
+`land_constant` branch:
+
+![plot](land_run_results/30-01-2025&21-28-42/simulation_plots.svg)
+
+`main` branch:
+![plot](documents_archive/simulation_plots.svg)
