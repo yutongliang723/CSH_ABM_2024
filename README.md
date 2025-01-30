@@ -6,4 +6,8 @@
 
 The difference between this branch `land_constant` and the main branch is that the land quality is manually kept constant. It will not be changed. The land quality value is set to be the same for each with a high value.  
   
-This is designed to explore what will happen when there are abundant food for the villagers.
+This is designed to explore what will happen when there are abundant food for the villagers.  
+  
+### Result Log
+
+`land_constant` 30-01-2025&21-28-42 can be compared with `main` 29-01-2025&23-47-09. The only difference is the land quality setting.
