@@ -18,3 +18,4 @@ This is designed to explore what will happen when there are abundant food for th
 
 `main` branch:
 ![plot](documents_archive/simulation_plots.svg)
+
