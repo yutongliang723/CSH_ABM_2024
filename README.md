@@ -10,6 +10,8 @@ This is designed to explore what will happen when there are abundant food for th
   
 ### Result Log
 
+#### result case I
+
 `land_constant` 30-01-2025&21-28-42 can be compared with `main` 29-01-2025&23-47-09. The only difference is the land quality setting. 
 Vec1:
 ```
@@ -46,3 +48,14 @@ vec1 = binned_vec
 `main` branch:
 ![plot](documents_archive/simulation_plots.svg)
 
+  
+  #### result case II
+
+`land_constant` 30-01-2025&22-10-44 can be compared with `main` 30-01-2025&22-16-34. The only difference is the land quality setting. Fertility scalar is up to 5 instead of 2 in the result case I. Used the original vec1 without any rescaling.
+
+`land_constant` branch:
+
+![plot](land_run_results/30-01-2025&22-10-44/simulation_plots.svg)
+
+`main` branch:
+![plot](documents_archive/simulation_plots(1).svg)
