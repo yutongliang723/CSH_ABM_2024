@@ -47,7 +47,7 @@ class Agent:
         age_index = self.get_age_group_index(vec1)
         
         survival_probability = vec1.pstar[age_index] * sp.gdtr(1.0 / vec1.mortscale, vec1.mortparms[age_index], z)
-        fertility_probability = vec1.mstar[age_index] * sp.gdtr(1.0 / vec1.fertscale, vec1.fertparm, z) * fertility_scaler
+        fertility_probability = vec1.mstar[age_index]* sp.gdtr(1.0 / vec1.fertscale, vec1.fertparm, z) * fertility_scaler
         
         if random.random() > survival_probability:
             self.is_alive = False # need this
