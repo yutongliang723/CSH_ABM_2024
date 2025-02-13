@@ -2,7 +2,7 @@ import random
 from agent import Agent
 from household import Household
 from village import Village
-from agent import Vec1
+from vec import vec1
 import scipy.special as sp
 import math
 import uuid
@@ -15,7 +15,7 @@ def generate_random_agent(household_id, vec1):
     age = random.randint(1, 20)
     gender = random.choice(['male', 'female'])
     fertility = m0[age]
-    return Agent(age, gender, household_id, vec1, fertility)
+    return Agent(age, gender, household_id, fertility)
 
 def generate_random_household(num_members, location, vec1, food_expiration_steps):
     """Generate a random household with a specified number of agents."""
@@ -26,7 +26,7 @@ def generate_random_household(num_members, location, vec1, food_expiration_steps
     
     return new_household
 
-def generate_random_village(num_households, num_land_cells, vec1, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period):
+def generate_random_village(num_households, num_land_cells, vec1, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period, luxury_goods_in_village):
     """Generate a village with a specified number of households and land cells."""
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}
@@ -44,7 +44,7 @@ def generate_random_village(num_households, num_land_cells, vec1, food_expiratio
 
     households = []
 
-    new_village = Village(households, land_types, food_expiration_steps, fallow_period)
+    new_village = Village(households, land_types, food_expiration_steps, fallow_period, luxury_goods_in_village)
     new_village.population_accumulation.append(0)
 
     for i in range(num_households):

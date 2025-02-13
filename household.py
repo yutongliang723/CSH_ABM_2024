@@ -33,6 +33,16 @@ class Household:
         self.food_storage = [(amount, age_added) for amount, age_added in self.food_storage
                              if self.current_step - age_added < self.food_expiration_steps]
 
+    def deduct_food(household, amount_due):
+        while amount_due > 0 and household.food_storage:
+            amount, age_added = household.food_storage[0]
+            if amount > amount_due:
+                household.food_storage[0] = (amount - amount_due, age_added)
+                amount_due = 0
+            else:
+                household.food_storage.pop(0)
+                amount_due -= amount
+
     def advance_step(self):
         """Advance the step count for food expiration date."""
         self.current_step += 1
@@ -44,24 +54,24 @@ class Household:
         return village.land_types[self.location].get('max_capacity', 1.0)
     
 
-    def produce_food(self, village, vec1, prod_multiplier, fishing_discount):
+    def produce_food(self, village, vec1, prod_multiplier, fishing_discount, work_scale):
         """Simulate food production based on land quality and the work done by household members."""
         land_data = village.land_types[self.location]
         if land_data['fallow']:
             production_amount = 0
             for member in self.members:
                 if member.is_alive:
-                    work_output = member.work() 
+                    work_output = member.work(vec1, work_scale) 
             
                     production_amount += work_output * fishing_discount
-            print(f"Household {self.id} cannot farm land plot {self.location} because it is fallow.")
+            # print(f"Household {self.id} cannot farm land plot {self.location} because it is fallow.")
         
         else:
             land_quality = village.land_types[self.location]['quality']
             production_amount = 0
             for member in self.members:
                 if member.is_alive:
-                    work_output = member.work() 
+                    work_output = member.work(vec1, work_scale) 
                     # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
                     production_amount += work_output * land_quality * prod_multiplier
             # print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
@@ -90,17 +100,18 @@ class Household:
         self.food_storage = list((x, y) for x, y in self.food_storage if x > 0)
         return removed
 
-    def consume_food(self, total_food_needed, village):
-        """Simulate food consumption by household members."""
-        # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
-        self.food_storage.sort(key=lambda x: x[1])
-        self.update_food_storage()
-        total_available_food = sum(amount for amount, _ in self.food_storage)
-        if not len(self.food_storage) == 0:
+    # def consume_food(self, total_food_needed, village):
+    #     """Simulate food consumption by household members."""
+    #     # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
+    #     self.food_storage.sort(key=lambda x: x[1])
+    #     self.update_food_storage()
+    #     total_available_food = sum(amount for amount, _ in self.food_storage)
+    #     if not len(self.food_storage) == 0:
 
-            consumed = self.remove_food(total_food_needed)
-            # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
-        else: village.remove_household(self)
+    #         consumed = self.remove_food(total_food_needed)
+    #         # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
+    #     else: 
+    #         village.remove_household(self)
 
 
     def get_distance(self, location1, location2):
@@ -184,10 +195,8 @@ class Household:
 
             village.households.append(new_household)
 
-            # new_household.create_network_connectivity_household_distance(village)
-            # print(f'Household {self.id} splitted to {new_household.id}')
             new_household.create_network_connectivity(village, village.network, True,
-                lambda x, y: max(0, 1/village.get_distance(x.location, y.location)))
+                lambda x, y:1/village.get_distance(x.location, y.location))
             new_household.create_network_connectivity(village, village.network_relation, False,
                 lambda x, y: 0)
             # print(f'Household {self.id} splitted to {new_household.id}')
