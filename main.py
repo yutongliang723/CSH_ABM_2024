@@ -23,4 +23,4 @@ for _ in range(year):
     # utils.print_village_summary(village)
     
 village.plot_simulation_results(file_name, file_name_txt)
-# village.generate_animation(file_path, grid_dim=math.ceil(math.sqrt(land_cells)))
+village.generate_animation(file_path, grid_dim=math.ceil(math.sqrt(land_cells)))
