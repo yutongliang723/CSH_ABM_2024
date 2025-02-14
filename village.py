@@ -9,6 +9,8 @@ import random
 from agent import Agent
 from vec import vec1
 import statistics
+import scipy.special as sp
+import scipy.linalg as sl
 
 # from utils import reduce_food_from_house
 
@@ -711,6 +713,20 @@ class Village:
         # # print(self.average_fertility_over_time)
 
 
+    def get_eigen_value(self):
+            p0 = vec1.pstar.values  # survival probabilities
+            m0 = vec1.mstar.values  # fertility rates
+            N = len(p0)  # number of age groups
+            m1 = np.zeros((N, N))  # initialize N x N matrix
+            m1[0, :] = m0  # set fertility rates in the first row
+
+            for i in range(N - 1):
+                m1[i + 1, i] = p0[i]  # set survival probabilities in sub-diagonal
+
+            eigvals, eigvecs = sl.eig(m1)  # sompute eigenvalues and eigenvectors
+            lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
+            return str(lambda_max)
+
     def plot_simulation_results(self, file_name, file_name_txt):
         
         # plt.legend()
@@ -805,12 +821,11 @@ class Village:
         # with open(f'networks{self.time}.txt', 'w') as output:
         #     output.write(str(self.networks))
 
-        txt_file_name = file_name_txt
-    
-        with open(txt_file_name, 'w') as txt_file:
+        eigen = self.get_eigen_value()
+        with open(file_name_txt, 'w') as txt_file:
             txt_file.write("Simulation Results\n")
             txt_file.write("=" * 50 + "\n")
-
+            txt_file.write("Eigenvalue: " + str(eigen))
             # Define metrics to save
             metrics = {
                 "Population Over Time": self.population_over_time,
@@ -827,9 +842,8 @@ class Village:
             # Write each metric to the text file
             for metric_name, values in metrics.items():
                 txt_file.write(f"\n{metric_name}:\n")
-                txt_file.write(", ".join(map(str, values)) + "\n")
-
-        
+                txt_file.write(", ".join(map(str, str(values))) + "\n")
+            
 
     def get_agent_by_id(self, agent_id):
         for household in self.households:

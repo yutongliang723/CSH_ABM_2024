@@ -5,7 +5,7 @@ vec1 = vec1.rename_axis('age').reset_index()
 new_max_age = 60
 old_max_age = vec1['age'].max()
 scale_factor = new_max_age / old_max_age
-scaler = 4
+scaler = 5
 other_para = ['rho', 'pstar', 'mortparms']
 bins = pd.cut(vec1['age'], bins=new_max_age)
 binned_vec = pd.DataFrame()
