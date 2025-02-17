@@ -92,7 +92,7 @@ class Village:
 
     def update_network_connectivity(self):
         """Updates connectivity based on trading and distance."""
-        valid_households = [household.id for household in self.households]
+        # valid_households = [household.id for household in self.households]
         # print(self.network)
 
         for household_id in list(self.network.keys()):
@@ -110,9 +110,6 @@ class Village:
                     # print('distance', distance)
                     # print(household.location, other_household.location, ';', household.id, other_household.id)
                     connectivity[other_id] = 1 / distance
-            # else:
-            #     # print('household not valid')
-            #     pass
                     
     def add_food_village(self, amount):
         """Add food with the current step count."""
@@ -240,18 +237,22 @@ class Village:
     def migrate_household(self, household, storage_ratio_low):
         """Handle the migration of a household to a new land cell if necessary."""
         empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
+        
         # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in household.members)
         # land_quality = self.land_types[household.location]['quality']
         # total_food_storage = sum(amount for amount, _ in household.food_storage)
 
         # if total_food_storage < 1.5 * total_food_needed and total_food_storage > 0.2 * total_food_needed and land_quality < 1:
         #     print(f'Poor - Migration qualify for {household.id}')
+        
         if empty_land_cells:
+            
             # print("There are empty land to migrate")
             # sorted_land_cells = sorted(
             #                             empty_land_cells, 
             #                             key=lambda x: (self.get_distance(household.location, x[0]), -x[1]['quality'])
             #                             )
+            
             sorted_land_cells = sorted(
                                         empty_land_cells,
                                         key=lambda x: self.get_distance(household.location, x[0]) - 0.5 * x[1]['quality']
@@ -261,21 +262,12 @@ class Village:
             household.location = best_land[0]
             self.land_types[household.location]['occupied'] = True
             migrate_cost = sum(amount for amount, _ in household.food_storage) * storage_ratio_low
-            """ Pay for the migration """
-            # still_pay = migrate_cost
-            
+            """ Pay for the migration """            
             household.deduct_food(migrate_cost)
             
-            # while still_pay > 0 and household.food_storage:
-            #     amount, age_added = household.food_storage[0]
-            #     if amount > still_pay:
-            #         household.food_storage[0] = (amount - still_pay, age_added)
-            #         still_pay = 0
-            #     else:
-            #         household.food_storage.pop(0)
-            #         still_pay -= amount
-            if household.id == '40':
+            if str(household.id) == '5':
                 print(f"Household {household.id} migrated to {household.location}.")
+                print("empty_land_cells", empty_land_cells) # (3, 1) is in it.
         else:
             # print(f"Household {household.id} failed moving because there is no more space.")
             pass
@@ -308,22 +300,22 @@ class Village:
             self.remove_household(household)
 
 
-    def remove_household_dummy(self,household):
-        luxury_good_to_donate = household.luxury_good_storage
-        food_to_donate = household.food_storage
-        self.luxury_goods_in_village += luxury_good_to_donate
-        if len(food_to_donate) != 0:
-            self.spare_food.extend(food_to_donate)
+    # def remove_household_dummy(self,household):
+    #     luxury_good_to_donate = household.luxury_good_storage
+    #     food_to_donate = household.food_storage
+    #     self.luxury_goods_in_village += luxury_good_to_donate
+    #     if len(food_to_donate) != 0:
+    #         self.spare_food.extend(food_to_donate)
 
-        self.land_types[household.location]['occupied'] = False
-        self.households.remove(household)
-        # print('empty household', household.id)
-        del self.network[household.id]
-        for c in self.network.values():
-            del c['connectivity'][household.id]
-        del self.network_relation[household.id]
-        for c in self.network_relation.values():
-            del c['connectivity'][household.id]
+    #     self.land_types[household.location]['occupied'] = False
+    #     self.households.remove(household)
+    #     # print('empty household', household.id)
+    #     del self.network[household.id]
+    #     for c in self.network.values():
+    #         del c['connectivity'][household.id]
+    #     del self.network_relation[household.id]
+    #     for c in self.network_relation.values():
+    #         del c['connectivity'][household.id]
 
     def remove_household(self, household):
         """ Safely removes a household and updates resources and network. """
@@ -510,11 +502,16 @@ class Village:
             land_quality = self.land_types[household.location]['quality']
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
+            if household.id == str(5):
+                print('5 migration')
+
+
             if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
                 # print(f'Poor - Migration qualify for {household.id}')
 
                 self.migrate_household(household, storage_ratio_low)
                 print(f"Migrate{household.id}")
+            
             
 
             if len(household.members) > max_member:
@@ -557,7 +554,9 @@ class Village:
                 farming_intensity = len(household.members)
 
                 if farming_intensity == 0:
+                    self.remove_household(household)
                     land['occupied'] = False
+
                     # land['household_id'] = None
                     # print(f"Land at {location} is now unoccupied.")
                 
@@ -913,16 +912,24 @@ class Village:
         # women move to men's household after marriage.
         new_household.extend(female_agent)
         old_household.remove_member(female_agent)
-        if len(old_household.members) == 0:
-            print("Attention, 0 members in old household.")
-            self.remove_household(old_household)
+
+        # if len(old_household.members) == 0:
+            
+            # print("Attention, 0 members in old household.")
+            # print("Current household ID", old_household.id)
+            # print("Current location", old_household.location)
+            # # print(self.land_types[old_household.location])
+            # for hh in self.households:
+            #     if hh.location == old_household.location and old_household != hh:
+            #         print("Same land id", hh.id)
+
+            # print(self.network[old_household.id]['connectivity'])
+            # self.remove_household(old_household)
         
         female_agent.household_id = new_household.id
 
         # print(f"Marriage: {female_agent.id} (female) moved to {male_agent.id} (male) household {new_household.id}.")
     
-    
-
     def calculate_wealth(self, exchange_rate):
         wealths = [household.get_wealth(exchange_rate) for household in self.households if household in self.households]
         return wealths
@@ -991,6 +998,8 @@ class Village:
         
         for household in self.households:
             if household.location == land_id:
+                if str(land_id) == str((3, 1)):
+                    print(f'Check notify migration, {land_id}')
                 self.migrate_household(household, storage_ratio_low)
                 # print(f"{household.id} are forced migrate to another land")
                   # force the household to migrate
