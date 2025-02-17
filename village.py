@@ -43,8 +43,8 @@ class Village:
         
         for household in self.households:
             self.network[household.id] = {
-                'connectivity': {},  
-                'luxury_goods': household.luxury_good_storage
+                'connectivity': {}
+                #,'luxury_goods': household.luxury_good_storage
             }
         
         for household in self.households:
@@ -109,7 +109,7 @@ class Village:
                     distance = self.get_distance(household.location, other_household.location)
                     # print('distance', distance)
                     # print(household.location, other_household.location, ';', household.id, other_household.id)
-                    connectivity[other_id] = max(0, 1 / distance)
+                    connectivity[other_id] = 1 / distance
             # else:
             #     # print('household not valid')
             #     pass
@@ -149,7 +149,7 @@ class Village:
 
                 # print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
         
-        self.update_spare_food_expiration()
+        self.update_spare_food_expiration() #TODO: can move it to the main loop
     
     def update_spare_food_expiration(self):
         current_time = self.time  
@@ -299,10 +299,6 @@ class Village:
     def is_land_available(self):
         return any(not data['occupied'] and not data['fallow'] for data in self.land_types.values())
 
-    # def remove_empty_household(self, household):
-    #     if household in self.households:
-    #         if len(household.members) == 0:
-    #             self.remove_household(household)
                 
     def remove_empty_household(self):
         """ Removes all empty households safely. """
@@ -460,15 +456,12 @@ class Village:
             	agent in household.members)
             if spare_food_enabled:
                 self.take_spare_food_for_poor(household, total_food, total_food_needed)
-                pass
 
             # z = total_food * total_food_needed
+            total_food = sum(x for x, _ in household.food_storage)
 
             for agent in household.members:
                 # agent_food_needed= agent.vec1.rho[agent.get_age_group_index()]
-                total_food = sum(x for x, _ in household.food_storage)
-                total_food_needed = sum(vec1.rho[agent.get_age_group_index(vec1)] for agent in household.members)
-                
                 agent_food_needed = vec1.rho[agent.get_age_group_index(vec1)]
                 z = total_food * agent_food_needed / total_food_needed
                 agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, vec1)
@@ -479,7 +472,7 @@ class Village:
                     if agent.newborn_agents:
                         newborn_agents.extend(agent.newborn_agents)
                         agent.newborn_agents = []
-                total_new_born += len(newborn_agents)
+            total_new_born += len(newborn_agents)
             self.population_accumulation[-1] += len(newborn_agents)
         
             for agent in dead_agents:
@@ -497,15 +490,14 @@ class Village:
 
             household.food_storage.sort(key=lambda x: x[1])
             household.update_food_storage()
-            total_available_food = sum(amount for amount, _ in household.food_storage)
             if not len(household.food_storage) == 0:
 
                 consumed = household.remove_food(total_food_needed)
                 # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
-            else: 
-                self.remove_household(self)
+            # else: 
+            #     self.remove_household(self)
 
-            self.remove_empty_household()
+        self.remove_empty_household()
         print(f"village has {total_new_born} new born.")
         if longevities:
             self.average_life_span.append(sum(longevities)/len(longevities))
@@ -530,11 +522,14 @@ class Village:
                 # print(f"Split {household.id}")
             else: 
                 pass
-            self.remove_empty_household()
+            # self.remove_empty_household()
             household.advance_step()
         for household in households:
-            self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio) # if choose to comment out this line, please also comment out 
-            self.remove_empty_household()
+            """ This propse_marriage is causing trouble. It is not really removing the empty household from the land. It seems that marry_agents() has issues """
+            self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio) 
+            
+            # if choose to comment out this line, please also comment out 
+            # self.remove_empty_household() #TODO: why?
             household.advance_step()
             
         self.update_tracking_variables(exchange_rate)
@@ -903,29 +898,24 @@ class Village:
     def marry_agents(self, female_agent, male_agent, bride_price_ratio):
         """Handle the marriage process, ensuring the female moves to the male's household."""
         old_household = self.get_household_by_id(female_agent.household_id)
-        female_agent.marry(male_agent)
+        female_agent.marry(male_agent) # change the agent state
         
         new_household = self.get_household_by_id(male_agent.household_id)
         bride_price = sum(amount for amount, _ in new_household.food_storage) * bride_price_ratio
-        male_luxury_goods = new_household.luxury_good_storage
+        male_luxury_goods = new_household.luxury_good_storage / 2
         price_to_pay = bride_price 
         new_household.deduct_food(bride_price)
+        old_household.add_food(bride_price - price_to_pay)
 
-        # while price_to_pay > 0 and new_household.food_storage: 
-        #     amount, age_added = new_household.food_storage[0]
-        #     if price_to_pay <= amount:
-        #         new_household.food_storage[0] = (amount - price_to_pay, age_added)
-        #         price_to_pay = 0
-        #     else:
-        #         new_household.food_storage.pop(0)
-        #         price_to_pay -= amount
         old_household.luxury_good_storage += male_luxury_goods
         new_household.luxury_good_storage -= male_luxury_goods
         
-        old_household.add_food(bride_price - price_to_pay)
         # women move to men's household after marriage.
         new_household.extend(female_agent)
         old_household.remove_member(female_agent)
+        if len(old_household.members) == 0:
+            print("Attention, 0 members in old household.")
+            self.remove_household(old_household)
         
         female_agent.household_id = new_household.id
 

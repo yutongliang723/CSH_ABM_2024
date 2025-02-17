@@ -60,7 +60,8 @@ class Household:
         if land_data['fallow']:
             production_amount = 0
             for member in self.members:
-                if member.is_alive:
+                # if member.is_alive:
+                if 1 == 1:
                     work_output = member.work(vec1, work_scale) 
             
                     production_amount += work_output * fishing_discount
@@ -70,7 +71,8 @@ class Household:
             land_quality = village.land_types[self.location]['quality']
             production_amount = 0
             for member in self.members:
-                if member.is_alive:
+                # if member.is_alive:
+                if 1 == 1:
                     work_output = member.work(vec1, work_scale) 
                     # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
                     production_amount += work_output * land_quality * prod_multiplier

@@ -29,8 +29,8 @@ class Agent:
     def work(self, vec1, work_scale):
         """Simulate work done by the agent based on effectiveness parameter."""
         work_output = 0
-        if self.is_alive:
-        # if 1 ==1:
+        # if self.is_alive:
+        if 1 ==1:
             age_index = self.get_age_group_index(vec1)
             phi = vec1.phi[age_index]
             work_output = phi * work_scale
