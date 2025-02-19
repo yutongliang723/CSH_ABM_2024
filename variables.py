@@ -40,7 +40,7 @@ fertility_scaler = params["fertility_scaler"] # very important, society cannot l
 work_scale = params['work_scale']
 file_path = params["file_path"]
 file_name = params["file_name"]
-file_name_txt = params['file_name_txt']
+file_name_csv = params['file_name_csv']
 demog_file = params['demog_file']
 luxury_goods_in_village = params['luxury_goods_in_village']
 

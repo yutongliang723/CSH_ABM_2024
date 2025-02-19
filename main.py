@@ -22,5 +22,5 @@ for _ in range(year):
     village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, land_depreciate_factor = land_depreciate_factor, fertility_scaler = fertility_scaler, work_scale = work_scale, spare_food_enabled=spare_food_enabled, fallow_farming = fallow_farming)
     # utils.print_village_summary(village)
     
-village.plot_simulation_results(file_name, file_name_txt)
+village.plot_simulation_results(file_name, file_name_csv)
 # village.generate_animation(file_path, grid_dim=math.ceil(math.sqrt(land_cells)))

@@ -1,5 +1,6 @@
 from household import Household
 import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.animation as animation
@@ -431,8 +432,8 @@ class Village:
         # print(self.land_types)
         self.update_network_connectivity()
         longevities = []
-        print(f"Last year:{self.population_accumulation[-1]}")
-        self.population_accumulation.append(self.population_accumulation[-1])
+        
+        self.population_accumulation.append(self.population_accumulation[-1]) # the first position is generated from utils, so there is a year -1.
         
         total_new_born = 0
         households = self.households[:]  
@@ -528,7 +529,7 @@ class Village:
             # if choose to comment out this line, please also comment out 
             # self.remove_empty_household() #TODO: why?
             household.advance_step()
-            
+        self.remove_empty_household()
         self.update_tracking_variables(exchange_rate)
         self.track_land_usage()
         self.update_land_capacity(land_depreciate_factor)        
@@ -554,7 +555,7 @@ class Village:
                 farming_intensity = len(household.members)
 
                 if farming_intensity == 0:
-                    self.remove_household(household)
+                    # self.remove_household(household)
                     land['occupied'] = False
 
                     # land['household_id'] = None
@@ -721,7 +722,7 @@ class Village:
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(lambda_max)
 
-    def plot_simulation_results(self, file_name, file_name_txt):
+    def plot_simulation_results(self, file_name, file_name_csv):
         
         # plt.legend()
         
@@ -816,27 +817,31 @@ class Village:
         #     output.write(str(self.networks))
 
         eigen = self.get_eigen_value()
-        with open(file_name_txt, 'w') as txt_file:
-            txt_file.write("Simulation Results\n")
-            txt_file.write("=" * 50 + "\n")
-            txt_file.write("Eigenvalue: " + str(eigen))
+        # with open(file_name_txt, 'w') as txt_file:
+        #     txt_file.write("Simulation Results\n")
+        #     txt_file.write("=" * 50 + "\n")
+        #     txt_file.write("Eigenvalue: " + str(eigen))
             # Define metrics to save
-            metrics = {
-                "Population Over Time": self.population_over_time,
-                "Occupied Land Capacity": self.land_capacity_over_time,
-                "All Land Capacity": self.land_capacity_over_time_all,
-                "Food Storage Over Time": self.food_storage_over_time,
-                "Average Household Fertility": self.average_fertility_over_time,
-                "Average Age Over Time": self.average_age,
-                "Average Life Span Over Time": self.average_life_span,
-                "Accumulated Population": self.population_accumulation,
-                "Gini Coefficients": self.gini_coefficients
-            }
+        metrics = {
+            "Population Over Time": self.population_over_time,
+            "Occupied Land Capacity": self.land_capacity_over_time,
+            "All Land Capacity": self.land_capacity_over_time_all,
+            "Food Storage Over Time": self.food_storage_over_time,
+            "Average Household Fertility": self.average_fertility_over_time,
+            "Average Age Over Time": self.average_age,
+            "Average Life Span Over Time": self.average_life_span[1:],
+            "Accumulated Population": self.population_accumulation[1:],
+            "Gini Coefficients": self.gini_coefficients
+        }
+        
+        metrics_df = pd.DataFrame(metrics)
+        metrics_df["Eigenvalue"] = pd.NA
+        metrics_df.loc[0, "Eigenvalue"] = eigen 
+        metrics_df.to_csv(file_name_csv, index=False)
 
-            # Write each metric to the text file
-            for metric_name, values in metrics.items():
-                txt_file.write(f"\n{metric_name}:\n")
-                txt_file.write(", ".join(map(str, str(values))) + "\n")
+            # for metric_name, values in metrics.items():
+            #     txt_file.write(f"\n{metric_name}:\n")
+            #     txt_file.write(", ".join(map(str, str(values))) + "\n")
             
 
     def get_agent_by_id(self, agent_id):

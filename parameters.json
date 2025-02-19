@@ -29,6 +29,6 @@
     "luxury_goods_in_village": 50,
     "file_path": "simulation.gif",
     "file_name": "simulation_plots.svg",
-    "file_name_txt": "numerical_output.txt",
+    "file_name_csv": "numerical_output.csv",
     "demog_file":"demog_vectors_scaled.csv"
 }
