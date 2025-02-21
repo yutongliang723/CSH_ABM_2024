@@ -92,8 +92,8 @@ def run_simulation(village, vec1_instance, params):
     
     # logging.info("Simulation completed.")
 
-def save_results(village, file_name, file_name_csv):
-    village.plot_simulation_results(file_name, file_name_csv)
+def save_results(village, file_name, file_name_csv, vec1_instance):
+    village.plot_simulation_results(file_name, file_name_csv, vec1_instance)
     village.generate_animation(file_name, grid_dim=math.ceil(math.sqrt(village.land_cells)))
 
 def main():
@@ -107,7 +107,7 @@ def main():
     village = initialize_village(params)
     # logging.info("Starting simulation...")
     run_simulation(village, vec1_instance, params)
-    save_results(village, file_name, file_name_csv)
+    save_results(village, file_name, file_name_csv, vec1_instance)
     # except Exception as e:
     #     logging.error(f"An error occurred: {e}")
     #     sys.exit(1)

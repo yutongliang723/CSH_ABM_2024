@@ -8,7 +8,7 @@ from IPython.display import display
 import ipywidgets as widgets
 import random
 from agent import Agent
-from vec import Vec1
+# from vec import vec1_instance
 import statistics
 import scipy.special as sp
 import scipy.linalg as sl
@@ -130,10 +130,10 @@ class Village:
         # house.add_food(food_amount - still_need)
         return food_amount - still_need
     
-    def manage_luxury_goods(self, exchange_rate, excess_food_ratio):
+    def manage_luxury_goods(self, exchange_rate, excess_food_ratio, vec1_instance):
         for household in self.households:
             # food_storage_needed = household.calculate_food_need()
-            food_storage_needed = sum(Vec1.rho[member.get_age_group_index(Vec1)] for member in household.members)
+            food_storage_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
             total_available_food = sum(amount for amount, _ in household.food_storage)
             excess_food = total_available_food - excess_food_ratio * food_storage_needed
              
@@ -154,13 +154,13 @@ class Village:
         # print('food in the loop check', self.spare_food)
         self.spare_food = [(amount, age_added) for amount, age_added in self.spare_food if current_time - age_added < self.food_expiration_steps]
 
-    def trading(self, excess_food_ratio, trade_back_start, exchange_rate):
+    def trading(self, excess_food_ratio, trade_back_start, exchange_rate, vec1_instance):
         food_for_luxury = []
         luxury_for_food = []
 
         # Determine trading intentions for each household
         for household in self.households:
-            food_needed = sum(Vec1.rho[member.get_age_group_index(Vec1)] for member in household.members)
+            food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
             total_available_food = sum(amount for amount, _ in household.food_storage)
             
             if total_available_food > excess_food_ratio * food_needed and self.luxury_goods_in_village == 0: 
@@ -184,13 +184,13 @@ class Village:
                         best_match = luxury_household
 
             if best_match:
-                self.execute_trade(food_household, best_match, exchange_rate)
+                self.execute_trade(food_household, best_match, exchange_rate,vec1_instance)
                 luxury_for_food.remove(best_match)
 
-    def execute_trade(self, food_household, luxury_household, exchange_rate):
+    def execute_trade(self, food_household, luxury_household, exchange_rate, vec1_instance):
         #  Get the smaller portion household
         food_to_trade = sum(amount for amount, _ in food_household.food_storage) - 1.5 * sum(
-            Vec1.rho[member.get_age_group_index(Vec1)] for member in food_household.members)
+            vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in food_household.members)
 
         luxury_goods_to_trade = min(luxury_household.luxury_good_storage, food_to_trade / exchange_rate)
         
@@ -402,7 +402,7 @@ class Village:
             newborn_agents = []
 
             total_food = sum(x for x, _ in household.food_storage)
-            total_food_needed = sum(vec1_instance.rho[agent.get_age_group_index(Vec1)] for
+            total_food_needed = sum(vec1_instance.rho[agent.get_age_group_index(vec1_instance)] for
             	agent in household.members)
             if spare_food_enabled:
                 self.take_spare_food_for_poor(household, total_food, total_food_needed)
@@ -411,10 +411,10 @@ class Village:
             total_food = sum(x for x, _ in household.food_storage)
 
             for agent in household.members:
-                # agent_food_needed= agent.Vec1.rho[agent.get_age_group_index()]
-                agent_food_needed = Vec1.rho[agent.get_age_group_index(Vec1)]
+                # agent_food_needed= agent.vec1_instance.rho[agent.get_age_group_index()]
+                agent_food_needed = vec1_instance.rho[agent.get_age_group_index(vec1_instance)]
                 z = total_food * agent_food_needed / total_food_needed
-                agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, Vec1)
+                agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, vec1_instance)
                 
                 if not agent.is_alive:
                     dead_agents.append(agent)
@@ -456,7 +456,7 @@ class Village:
             self.average_life_span.append(self.average_life_span[-1])
 
         for household in households:
-            total_food_needed = sum(Vec1.rho[member.get_age_group_index(Vec1)] for member in household.members)
+            total_food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
             land_quality = self.land_types[household.location]['quality']
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
@@ -490,8 +490,8 @@ class Village:
         self.update_tracking_variables(exchange_rate)
         self.track_land_usage()
         self.update_land_capacity(land_depreciate_factor)        
-        self.manage_luxury_goods(exchange_rate, excess_food_ratio)
-        self.trading(excess_food_ratio, trade_back_start, exchange_rate)
+        self.manage_luxury_goods(exchange_rate, excess_food_ratio, vec1_instance)
+        self.trading(excess_food_ratio, trade_back_start, exchange_rate, vec1_instance)
         if fallow_farming:
             self.update_fallow_land(fallow_ratio, fallow_period, storage_ratio_low)
         self.update_network_connectivity()
@@ -665,9 +665,9 @@ class Village:
         # # print(self.average_fertility_over_time)
 
 
-    def get_eigen_value(self):
-            p0 = Vec1.pstar.values  # survival probabilities
-            m0 = Vec1.mstar.values  # fertility rates
+    def get_eigen_value(self, vec1_instance):
+            p0 = vec1_instance.pstar.values  # survival probabilities
+            m0 = vec1_instance.mstar.values  # fertility rates
             N = len(p0)  # number of age groups
             m1 = np.zeros((N, N))  # initialize N x N matrix
             m1[0, :] = m0  # set fertility rates in the first row
@@ -679,7 +679,7 @@ class Village:
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(lambda_max)
 
-    def plot_simulation_results(self, file_name, file_name_csv):
+    def plot_simulation_results(self, file_name, file_name_csv, vec1_instance):
         
         # plt.legend()
         
@@ -773,7 +773,7 @@ class Village:
         # with open(f'networks{self.time}.txt', 'w') as output:
         #     output.write(str(self.networks))
 
-        eigen = self.get_eigen_value()
+        eigen = self.get_eigen_value(vec1_instance)
         # with open(file_name_txt, 'w') as txt_file:
         #     txt_file.write("Simulation Results\n")
         #     txt_file.write("=" * 50 + "\n")
