@@ -19,24 +19,24 @@ class Agent:
         self.marital_status = 'single'
         self.partner_id = None
 
-    def get_age_group_index(self, vec1):
+    def get_age_group_index(self, vec1_instance):
         """Determine the age group index for the agent."""
         
-        if self.age >= len(vec1.phi):
-            return len(vec1.phi) - 1
+        if self.age >= len(vec1_instance.phi):
+            return len(vec1_instance.phi) - 1
         return self.age
 
-    def work(self, vec1, work_scale):
+    def work(self, vec1_instance, work_scale):
         """Simulate work done by the agent based on effectiveness parameter."""
         work_output = 0
         # if self.is_alive:
         if 1 ==1:
-            age_index = self.get_age_group_index(vec1)
-            phi = vec1.phi[age_index]
+            age_index = self.get_age_group_index(vec1_instance)
+            phi = vec1_instance.phi[age_index]
             work_output = phi * work_scale
             return work_output
     
-    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1):
+    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance):
 
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
@@ -44,10 +44,10 @@ class Agent:
         
         self.age += 1
 
-        age_index = self.get_age_group_index(vec1)
+        age_index = self.get_age_group_index(vec1_instance)
         
-        survival_probability = vec1.pstar[age_index] * sp.gdtr(1.0 / vec1.mortscale, vec1.mortparms[age_index], z)
-        fertility_probability = vec1.mstar[age_index]* sp.gdtr(1.0 / vec1.fertscale, vec1.fertparm, z) * fertility_scaler
+        survival_probability = vec1_instance.pstar[age_index] * sp.gdtr(1.0 / vec1_instance.mortscale, vec1_instance.mortparms[age_index], z)
+        fertility_probability = vec1_instance.mstar[age_index]* sp.gdtr(1.0 / vec1_instance.fertscale, vec1_instance.fertparm, z) * fertility_scaler
         
         if random.random() > survival_probability:
             self.is_alive = False # need this

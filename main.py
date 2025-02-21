@@ -1,26 +1,116 @@
-from household import Household
-from village import Village
-from agent import Agent
-from vec import Vec1
-from variables import *
-import pandas as pd
-import utils
+import os
+import json
+import logging
+import datetime
+import sys
 import random
 import math
-import sys
-from IPython.display import clear_output
+import pandas as pd
+from household import Household
+from village import *
+from agent import *
+from vec import *
+from village import *
+# from variables import *
+from demog_scale import *
+import utils
 
-random.seed(10)
-# args = sys.argv
-# if len(args) > 1:
-#     random.seed(int(args[1]))
-vec1_instance = Vec1()
-village = utils.generate_random_village(num_house, land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period, luxury_goods_in_village)
-village.initialize_network()
-village.initialize_network_relationship()
-for _ in range(year): 
-    village.run_simulation_step(vec1_instance, prod_multiplier = prod_multiplier, fishing_discount = fishing_discount, fallow_ratio = fallow_ratio, fallow_period = fallow_period, food_expiration_steps = food_expiration_steps, marriage_from = marriage_from, marriage_to = marriage_to, bride_price_ratio = bride_price_ratio, exchange_rate = exchange_rate, storage_ratio_low=storage_ratio_low, storage_ratio_high=storage_ratio_high, land_capacity_low = land_capacity_low, max_member=max_member, excess_food_ratio = excess_food_ratio, trade_back_start = trade_back_start, lux_per_year = lux_per_year, land_depreciate_factor = land_depreciate_factor, fertility_scaler = fertility_scaler, work_scale = work_scale, spare_food_enabled=spare_food_enabled, fallow_farming = fallow_farming)
-    # utils.print_village_summary(village)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def load_parameters(file_path="parameters.json"):
+
+    try:
+        with open(file_path, "r") as f:
+            params = json.load(f)
+        logging.info("Parameters loaded successfully.")
+        return params["simulation_parameters"]
+    except Exception as e:
+        logging.error(f"Error loading parameters: {e}")
+        sys.exit(1)
+
+def setup_simulation_parameters(params):
+    timestamp = datetime.datetime.now().strftime("%d-%m-%Y&%H-%M-%S")
+    folder_name = f"run_results/{timestamp}"
+    os.makedirs(folder_name, exist_ok=True)
+
+    file_name = f"{folder_name}/results"
+    file_path = f"{folder_name}/simulation_output"
+    file_name_csv = f"{folder_name}/simulation_results.csv"
+
+    with open(os.path.join(folder_name, "parameters.json"), "w") as f:
+        json.dump(params, f, indent=4)
+
+    return folder_name, file_name, file_path, file_name_csv
+
+def initialize_village(params):
+
+    vec1_instance = Vec1(params)
+    village = utils.generate_random_village(
+    num_households=params["num_house"],  # Correct argument name
+    num_land_cells=params["land_cells"],  # Correct argument name
+    vec1_instance=vec1_instance, 
+    food_expiration_steps=params["food_expiration_steps"],
+    land_ecovery_rate=params["land_ecovery_rate"], 
+    land_max_capacity=params["land_max_capacity"],
+    initial_quality=params["initial_quality"], 
+    fish_chance=params["fish_chance"], 
+    fallow_period=params["fallow_period"], 
+    luxury_goods_in_village=params["luxury_goods_in_village"]
+)
+    village.initialize_network()
+    village.initialize_network_relationship()
+    return village
+
+def run_simulation(village, vec1_instance, params):
+    # pd.read_csv(params['demog_file'])
+    for year in range(params["year"]):
+        village.run_simulation_step(
+            vec1_instance = vec1_instance, 
+            prod_multiplier=params["prod_multiplier"], 
+            fishing_discount=params["fishing_discount"], 
+            fallow_ratio=params["fallow_ratio"], 
+            fallow_period=params["fallow_period"], 
+            food_expiration_steps=params["food_expiration_steps"], 
+            marriage_from=params["marriage_from"], 
+            marriage_to=params["marriage_to"], 
+            bride_price_ratio=params["bride_price_ratio"], 
+            exchange_rate=params["exchange_rate"], 
+            storage_ratio_low=params["storage_ratio_low"], 
+            storage_ratio_high=params["storage_ratio_high"], 
+            land_capacity_low=params["land_capacity_low"], 
+            max_member=params["max_member"], 
+            excess_food_ratio=params["excess_food_ratio"], 
+            trade_back_start=params["trade_back_start"], 
+            lux_per_year=params["lux_per_year"], 
+            land_depreciate_factor=params["land_depreciate_factor"], 
+            fertility_scaler=params["fertility_scaler"], 
+            work_scale=params["work_scale"], 
+            spare_food_enabled=params["spare_food_enabled"], 
+            fallow_farming=params["fallow_farming"])
+        
+        # logging.info(f"Simulation step {year + 1} completed.")
     
-village.plot_simulation_results(file_name, file_name_csv)
-# village.generate_animation(file_path, grid_dim=math.ceil(math.sqrt(land_cells)))
+    # logging.info("Simulation completed.")
+
+def save_results(village, file_name, file_name_csv):
+    village.plot_simulation_results(file_name, file_name_csv)
+    village.generate_animation(file_name, grid_dim=math.ceil(math.sqrt(village.land_cells)))
+
+def main():
+    random.seed(10)
+    # try:
+    params = load_parameters()
+    _, file_name, _, file_name_csv = setup_simulation_parameters(params)
+    vec1_instance = Vec1(params)
+    print("vec1_instance, ", vec1_instance.phi)
+
+    village = initialize_village(params)
+    # logging.info("Starting simulation...")
+    run_simulation(village, vec1_instance, params)
+    save_results(village, file_name, file_name_csv)
+    # except Exception as e:
+    #     logging.error(f"An error occurred: {e}")
+    #     sys.exit(1)
+
+if __name__ == "__main__":
+    main()
