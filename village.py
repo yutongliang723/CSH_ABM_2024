@@ -393,7 +393,16 @@ class Village:
         longevities = []
         
         self.population_accumulation.append(self.population_accumulation[-1]) # the first position is generated from utils, so there is a year -1.
-        
+        if self.time not in self.failure_baby:
+            self.failure_baby[self.time] = {}
+            self.failure_baby[self.time]['fertility'] = 0
+            self.failure_baby[self.time]['gender'] = 0
+            self.failure_baby[self.time]['marriage'] = 0
+            self.failure_baby[self.time]['land'] = 0
+            self.failure_baby[self.time]['household'] = 0
+        if self.time not in self.failure_marry:
+                    self.failure_marry[self.time] = 0
+
         total_new_born = 0
         households = self.households[:]  
         random.shuffle(households)  # Randomize order to avoid the spare food order issues
@@ -679,7 +688,7 @@ class Village:
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(lambda_max)
 
-    def plot_simulation_results_second(self):
+    def plot_simulation_results_second(self, file_name_second):
         plt.figure(figsize=(8, 6))
         time_steps = list(range(self.time))
         # print('self.failure_marry[t]', time_steps)
@@ -690,6 +699,7 @@ class Village:
         plt.yticks(size = 20)
         plt.title('Marriage Proposal Failures Over Time', size = 20)
         plt.legend(fontsize=15)
+        plt.savefig(file_name_second)
         plt.show()
         plt.close()
 
@@ -815,12 +825,7 @@ class Village:
         metrics_df = pd.DataFrame(metrics)
         metrics_df["Eigenvalue"] = pd.NA
         metrics_df.loc[0, "Eigenvalue"] = eigen 
-        metrics_df.to_csv(file_name_csv, index=False)
-
-            # for metric_name, values in metrics.items():
-            #     txt_file.write(f"\n{metric_name}:\n")
-            #     txt_file.write(", ".join(map(str, str(values))) + "\n")
-            
+        metrics_df.to_csv(file_name_csv, index=False)            
 
     def get_agent_by_id(self, agent_id):
         for household in self.households:
@@ -832,9 +837,6 @@ class Village:
     def propose_marriage(self, household, marriage_from, marriage_to, bride_price_ratio):
         """Handle the marriage proposals and household merging."""
         eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= marriage_from and agent.age <= marriage_to and agent.gender == 'female' and agent.marital_status == 'single']
-
-        if self.time not in self.failure_marry:
-                    self.failure_marry[self.time] = 0
 
         if not eligible_agents:
             return

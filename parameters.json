@@ -26,7 +26,7 @@
         "trade_back_start": 50,
         "lux_per_year": 3,
         "land_depreciate_factor": 0.01,
-        "fertility_scaler": 5,
+        "fertility_scaler": 1,
         "work_scale": 6,
         "luxury_goods_in_village": 50,
         
@@ -38,7 +38,7 @@
         "fallow_farming":true,
         "conditions":{
                     "use_fertility": true,
-                    "check_gender": true,
+                    "check_gender": false,
                     "check_marital_status": true,
                     "check_land": true,
                     "exceed_member": true 

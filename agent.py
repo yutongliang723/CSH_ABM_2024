@@ -39,6 +39,7 @@ class Agent:
     def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance, conditions):
 
         """Simulate aging, survival, and reproduction based on probabilities."""
+        
         if not self.is_alive:
             return
         
@@ -61,9 +62,8 @@ class Agent:
         # if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married' and village.is_land_available() is True:
         # if random.random() < fertility_probability and self.gender == 'female':
         judge = -1
-        if village.time not in village.failure_baby:
-            village.failure_baby[village.time] = {}
-            
+        
+
         if not conditions["use_fertility"] or random.random() < fertility_probability:
             pass
         else:

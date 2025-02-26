@@ -34,20 +34,21 @@ def setup_simulation_parameters(params):
     os.makedirs(folder_name, exist_ok=True)
 
     file_name = f"{folder_name}/results"
+    file_name_second = f"{folder_name}/results_second"
     file_path = f"{folder_name}/simulation_output"
     file_name_csv = f"{folder_name}/simulation_results.csv"
 
     with open(os.path.join(folder_name, "parameters.json"), "w") as f:
         json.dump(params, f, indent=4)
 
-    return folder_name, file_name, file_path, file_name_csv
+    return folder_name, file_name, file_path, file_name_csv, file_name_second
 
 def initialize_village(params):
 
     vec1_instance = Vec1(params)
     village = utils.generate_random_village(
-    num_households=params["num_house"],  # Correct argument name
-    num_land_cells=params["land_cells"],  # Correct argument name
+    num_households=params["num_house"],  
+    num_land_cells=params["land_cells"], 
     vec1_instance=vec1_instance, 
     food_expiration_steps=params["food_expiration_steps"],
     land_ecovery_rate=params["land_ecovery_rate"], 
@@ -89,33 +90,24 @@ def run_simulation(village, vec1_instance, params):
             spare_food_enabled=params["spare_food_enabled"], 
             fallow_farming=params["fallow_farming"]
             )
-        
-        # logging.info(f"Simulation step {year + 1} completed.")
-    
-    # logging.info("Simulation completed.")
 
-def save_results(village, file_name, file_name_csv, vec1_instance, params, file_name_gif):
+def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):
     village.plot_simulation_results(file_name, file_name_csv, vec1_instance)
-    village.plot_simulation_results_second()
+    village.plot_simulation_results_second(file_name_second)
     village.generate_animation(file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
+
 def main():
+
     random.seed(10)
-    # try:
     demog_scale()
     params = load_parameters()
-    
-    _, file_name, _, file_name_csv = setup_simulation_parameters(params)
+    _, file_name, _, file_name_csv, file_name_second = setup_simulation_parameters(params)
+
     vec1_instance = Vec1(params)
-    # print("vec1_instance, ", vec1_instance.phi)
-
     village = initialize_village(params)
-    # logging.info("Starting simulation...")
     run_simulation(village, vec1_instance, params)
-    save_results(village, file_name, file_name_csv, vec1_instance, params, params['file_name_gif'])
-    # except Exception as e:
-    #     logging.error(f"An error occurred: {e}")
-    #     sys.exit(1)
+    print(village.failure_baby)
+    save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, params['file_name_gif'])
     
-
 if __name__ == "__main__":
     main()
