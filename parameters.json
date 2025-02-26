@@ -1,6 +1,7 @@
 {
-    "simulation_parameters": {
-        "year": 1000,
+    "simulation_parameters": 
+    {
+        "year": 500,
         "num_house": 50,
         "land_cells": 56,
         "prod_multiplier": 3,
@@ -28,10 +29,20 @@
         "fertility_scaler": 5,
         "work_scale": 6,
         "luxury_goods_in_village": 50,
-        "file_path": "simulation.gif",
+        
         "file_name": "simulation_plots.svg",
         "file_name_csv": "numerical_output.csv",
         "demog_file":"demog_vectors_scaled.csv",
+        "file_name_gif": "simulation_gif.gif",
         "spare_food_enabled": true,
-        "fallow_farming":true    }
+        "fallow_farming":true,
+        "conditions":{
+                    "use_fertility": true,
+                    "check_gender": true,
+                    "check_marital_status": true,
+                    "check_land": true,
+                    "exceed_member": true 
+                    }
+       
+    }
 }

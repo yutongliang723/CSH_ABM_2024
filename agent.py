@@ -36,7 +36,7 @@ class Agent:
             work_output = phi * work_scale
             return work_output
     
-    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance):
+    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance, conditions):
 
         """Simulate aging, survival, and reproduction based on probabilities."""
         if not self.is_alive:
@@ -58,14 +58,50 @@ class Agent:
         
         self.fertility = fertility_probability
         # print(village.land_types.values())
-        if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married' and village.is_land_available() is True:
-        # TODO: think about to make it less constrains
-        
-            if len(household.members) + len(self.newborn_agents) < max_member: 
-                self.reproduce()
+        # if random.random() < fertility_probability and self.gender == 'female' and self.marital_status == 'married' and village.is_land_available() is True:
+        # if random.random() < fertility_probability and self.gender == 'female':
+        judge = -1
+        if village.time not in village.failure_baby:
+            village.failure_baby[village.time] = {}
+            
+        if not conditions["use_fertility"] or random.random() < fertility_probability:
+            pass
+        else:
+            village.failure_baby[village.time]["fertility"] = village.failure_baby[village.time].get("fertility", 0) + 1
+            judge += 1
+
+        if not conditions["check_gender"] or self.gender == "female":
+            pass
+        else:
+            village.failure_baby[village.time]["gender"] = village.failure_baby[village.time].get("gender", 0) + 1
+            judge += 1
+
+        if not conditions["check_marital_status"] or self.marital_status == "married":
+            pass
+        else:
+            village.failure_baby[village.time]["marriage"] = village.failure_baby[village.time].get("marriage", 0) + 1
+            judge += 1
+
+        if not conditions["check_land"] or village.is_land_available():
+            pass
+        else:
+            village.failure_baby[village.time]["land"] = village.failure_baby[village.time].get("land", 0) + 1
+            judge += 1
+
+        if not conditions["exceed_member"] or len(household.members) + len(self.newborn_agents) < max_member:
+            pass
+        else:
+            village.failure_baby[village.time]["household"] = village.failure_baby[village.time].get("household", 0) + 1
+            judge += 1
+
+        if judge == -1:
+            self.reproduce()  # only reproduce if no failures
+            
+            # if len(household.members) + len(self.newborn_agents) < max_member: 
+                
                 # print('reproduced')
                 # print('village.is_land_available()', village.is_land_available())
-    
+        
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""
         new_agent = Agent(

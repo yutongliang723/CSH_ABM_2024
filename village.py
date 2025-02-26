@@ -39,6 +39,8 @@ class Village:
         self.networks = []
         self.fallow_cycle = fallow_period
         self.population_accumulation = []
+        self.failure_baby = {}
+        self.failure_marry = {}
 
     def initialize_network(self):
         
@@ -380,7 +382,7 @@ class Village:
             # total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, spare_food_enabled=False, fallow_farming = False):
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, spare_food_enabled=False, fallow_farming = False):
         
         """Run a single simulation step (year)."""
         
@@ -414,7 +416,7 @@ class Village:
                 # agent_food_needed= agent.vec1_instance.rho[agent.get_age_group_index()]
                 agent_food_needed = vec1_instance.rho[agent.get_age_group_index(vec1_instance)]
                 z = total_food * agent_food_needed / total_food_needed
-                agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, vec1_instance)
+                agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, vec1_instance, conditions)
                 
                 if not agent.is_alive:
                     dead_agents.append(agent)
@@ -480,11 +482,9 @@ class Village:
             # self.remove_empty_household()
             household.advance_step()
         for household in households:
-            """ This propse_marriage is causing trouble. It is not really removing the empty household from the land. It seems that marry_agents() has issues """
             self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio) 
             
             # if choose to comment out this line, please also comment out 
-            # self.remove_empty_household() #TODO: why?
             household.advance_step()
         self.remove_empty_household()
         self.update_tracking_variables(exchange_rate)
@@ -679,19 +679,28 @@ class Village:
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(lambda_max)
 
+    def plot_simulation_results_second(self):
+        plt.figure(figsize=(8, 6))
+        time_steps = list(range(self.time))
+        # print('self.failure_marry[t]', time_steps)
+        failure_counts = [self.failure_marry[t] for t in time_steps]
+        plt.plot(time_steps, failure_counts, marker='o')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Failure Frequency', size = 20)
+        plt.yticks(size = 20)
+        plt.title('Marriage Proposal Failures Over Time', size = 20)
+        plt.legend(fontsize=15)
+        plt.show()
+        plt.close()
+
+    
+
     def plot_simulation_results(self, file_name, file_name_csv, vec1_instance):
-        
-        # plt.legend()
-        
-        # plt.tight_layout()
-        # plt.savefig('static/gini_overtime.png')
-        # plt.show()
-        # plt.close()
         
         plt.figure(figsize=(18, 12))
 
         # Plot 1: Population over time
-        plt.subplot(2, 4, 1)
+        plt.subplot(3, 3, 1)
         plt.plot(self.population_over_time, label='Population')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Population', size = 20)
@@ -701,7 +710,7 @@ class Village:
         plt.title('Population Over Time',size = 20)
 
         # Plot 2: Land Capacity over time
-        plt.subplot(2, 4, 2)
+        plt.subplot(3, 3, 2)
         plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
         plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--')
         plt.xlabel('Time Step', size = 20)
@@ -712,7 +721,7 @@ class Village:
         plt.title('Land Capacity Over Time', size = 20)
 
         # Plot 3: Food Storage over time
-        plt.subplot(2, 4, 3)
+        plt.subplot(3, 3, 3)
         plt.plot(self.food_storage_over_time, label='Food Storage')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Food Storage', size = 20)
@@ -722,7 +731,7 @@ class Village:
         plt.title('Food Storage Over Time', size = 20)
 
         # Plot 4: Average Fertility over time
-        plt.subplot(2, 4, 4)
+        plt.subplot(3, 3, 4)
         plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Average Household Fertility', size = 20)
@@ -732,7 +741,7 @@ class Village:
         plt.title('Average Fertility Over Time', size = 20)
 
         # Plot 5: Average Age over time
-        plt.subplot(2, 4, 5)
+        plt.subplot(3, 3, 5)
         plt.plot(self.average_age, label='Avg. Age')
         plt.xlabel('Time Step',size = 20)
         plt.ylabel('Average Age', size = 20)
@@ -742,7 +751,7 @@ class Village:
         plt.title('Average Age Over Time', size = 20)
 
         # Plot 6: Average Life Span over time
-        plt.subplot(2, 4, 6)
+        plt.subplot(3, 3, 6)
         plt.plot(self.average_life_span, label='Avg. Life Span')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Average Life Span', size = 20)
@@ -751,7 +760,7 @@ class Village:
         plt.legend(fontsize = 15)
         plt.title('Average Life Span Over Time', size = 20)
 
-        plt.subplot(2, 4, 7)
+        plt.subplot(3, 3, 7)
         plt.plot(self.population_accumulation, label='Accumulated Population', color='orange')
         plt.xlabel('Time Step', size=20)
         plt.ylabel('Accumulated Population', size=20)
@@ -759,26 +768,38 @@ class Village:
         plt.legend()
         plt.title('Accumulated Population', size=20)
 
-        plt.subplot(2, 4, 8)
+        plt.subplot(3, 3, 8)
         plt.plot(self.gini_coefficients)
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Gini Coefficient', size = 20)
         plt.yticks(size = 20)
         plt.title('Inequality Over Time', size = 20)
 
+
+        plt.subplot(3, 3, 9)
+
+        time_steps = range(self.time)
+        reasons = ["fertility", "gender", "marriage", "land", "household"]
+
+        data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
+
+        for reason in reasons:
+            plt.plot(time_steps, data[reason], label=reason)
+
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Failure Frequency', size = 20)
+        plt.yticks(size = 20)
+        plt.title('Failed Reproduction Reasons Over Time', size = 20)
+        plt.legend(fontsize=15)
+
+
         plt.tight_layout()
         plt.savefig(file_name)
         plt.show()
         plt.close()
-        # with open(f'networks{self.time}.txt', 'w') as output:
-        #     output.write(str(self.networks))
 
         eigen = self.get_eigen_value(vec1_instance)
-        # with open(file_name_txt, 'w') as txt_file:
-        #     txt_file.write("Simulation Results\n")
-        #     txt_file.write("=" * 50 + "\n")
-        #     txt_file.write("Eigenvalue: " + str(eigen))
-            # Define metrics to save
+
         metrics = {
             "Population Over Time": self.population_over_time,
             "Occupied Land Capacity": self.land_capacity_over_time,
@@ -811,8 +832,10 @@ class Village:
     def propose_marriage(self, household, marriage_from, marriage_to, bride_price_ratio):
         """Handle the marriage proposals and household merging."""
         eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= marriage_from and agent.age <= marriage_to and agent.gender == 'female' and agent.marital_status == 'single']
-        # print('agent household_id', household.id)
-        # print(eligible_agents)
+
+        if self.time not in self.failure_marry:
+                    self.failure_marry[self.time] = 0
+
         if not eligible_agents:
             return
         
@@ -822,12 +845,12 @@ class Village:
         # print(agent_network)
         for agent in eligible_agents:
             # print('Eligible agent {}, household: ({}, {})'.format(agent.id, agent.household_id, household.id))
-
             potential_spouses = self.find_potential_spouses(agent, marriage_from, marriage_to)
             
             max_connect = 0
-            best_agent = None # solve here
+            best_agent = None 
             richest_asset = 0
+            
             if potential_spouses:
                 for potential in potential_spouses:
                     potential_household = self.get_household_by_id(potential.household_id)
@@ -843,6 +866,10 @@ class Village:
                     # agent.marry(chosen_spouse) 
                     # print('marry agent ({}, {})'.format(agent.household_id, household.id))
                     self.marry_agents(agent, chosen_spouse, bride_price_ratio)
+                else:
+                    self.failure_marry[self.time] += 1
+            else:
+                self.failure_marry[self.time] += 1
 
     def find_potential_spouses(self, agent, marriage_from, marriage_to):
         """Find potential spouses for an agent from other households."""
@@ -856,7 +883,7 @@ class Village:
                         potential_spouses.append(member)
         return potential_spouses
     
-    def marry_agents(self, female_agent, male_agent, bride_price_ratio):
+    def marry_agents(self, female_agent, male_agent, bride_price_ratio): # admin process. not condition check
         """Handle the marriage process, ensuring the female moves to the male's household."""
         old_household = self.get_household_by_id(female_agent.household_id)
         female_agent.marry(male_agent) # change the agent state

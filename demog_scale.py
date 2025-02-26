@@ -2,11 +2,12 @@ import pandas as pd
 
 def demog_scale():
     vec1 = pd.read_csv('demog_vectors.csv')
+    vec1_copy = vec1.copy()
     vec1 = vec1.rename_axis('age').reset_index()
     new_max_age = 60
     old_max_age = vec1['age'].max()
     scale_factor = new_max_age / old_max_age
-    scaler = 5
+    scaler = 1
     other_para = ['rho', 'pstar', 'mortparms']
     bins = pd.cut(vec1['age'], bins=new_max_age)
     binned_vec = pd.DataFrame()
@@ -25,4 +26,5 @@ def demog_scale():
     binned_vec['fertscale'] = vec1['fertscale'] *scaler
     binned_vec['phi'] = vec1['phi']
     vec1 = binned_vec
-    vec1.to_csv('demog_vectors_scaled.csv')
+    vec1_copy.to_csv('demog_vectors_scaled.csv')
+    # vec1.to_csv('demog_vectors_scaled.csv')

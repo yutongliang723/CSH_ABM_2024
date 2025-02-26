@@ -63,7 +63,7 @@ def initialize_village(params):
 
 def run_simulation(village, vec1_instance, params):
     # pd.read_csv(params['demog_file'])
-    for year in range(params["year"]):
+    for _ in range(params["year"]):
         village.run_simulation_step(
             vec1_instance = vec1_instance, 
             prod_multiplier=params["prod_multiplier"], 
@@ -85,32 +85,37 @@ def run_simulation(village, vec1_instance, params):
             land_depreciate_factor=params["land_depreciate_factor"], 
             fertility_scaler=params["fertility_scaler"], 
             work_scale=params["work_scale"], 
+            conditions = params['conditions'],
             spare_food_enabled=params["spare_food_enabled"], 
-            fallow_farming=params["fallow_farming"])
+            fallow_farming=params["fallow_farming"]
+            )
         
         # logging.info(f"Simulation step {year + 1} completed.")
     
     # logging.info("Simulation completed.")
 
-def save_results(village, file_name, file_name_csv, vec1_instance):
+def save_results(village, file_name, file_name_csv, vec1_instance, params, file_name_gif):
     village.plot_simulation_results(file_name, file_name_csv, vec1_instance)
-    village.generate_animation(file_name, grid_dim=math.ceil(math.sqrt(village.land_cells)))
-
+    village.plot_simulation_results_second()
+    village.generate_animation(file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
 def main():
     random.seed(10)
     # try:
+    demog_scale()
     params = load_parameters()
+    
     _, file_name, _, file_name_csv = setup_simulation_parameters(params)
     vec1_instance = Vec1(params)
-    print("vec1_instance, ", vec1_instance.phi)
+    # print("vec1_instance, ", vec1_instance.phi)
 
     village = initialize_village(params)
     # logging.info("Starting simulation...")
     run_simulation(village, vec1_instance, params)
-    save_results(village, file_name, file_name_csv, vec1_instance)
+    save_results(village, file_name, file_name_csv, vec1_instance, params, params['file_name_gif'])
     # except Exception as e:
     #     logging.error(f"An error occurred: {e}")
     #     sys.exit(1)
+    
 
 if __name__ == "__main__":
     main()
