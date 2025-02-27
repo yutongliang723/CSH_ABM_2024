@@ -34,13 +34,15 @@
         "file_name_csv": "numerical_output.csv",
         "demog_file":"demog_vectors_scaled.csv",
         "file_name_gif": "simulation_gif.gif",
+        "prob_emigrate": 20,
         "spare_food_enabled": true,
         "fallow_farming":true,
+        "emigrate_enabled": true,
         "conditions":{
                     "use_fertility": true,
                     "check_gender": false,
-                    "check_marital_status": true,
-                    "check_land": true,
+                    "check_marital_status": false,
+                    "check_land": false,
                     "exceed_member": true 
                     }
        

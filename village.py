@@ -41,6 +41,7 @@ class Village:
         self.population_accumulation = []
         self.failure_baby = {}
         self.failure_marry = {}
+        self.emigrate = {}
 
     def initialize_network(self):
         
@@ -382,7 +383,7 @@ class Village:
             # total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, spare_food_enabled=False, fallow_farming = False):
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False):
         
         """Run a single simulation step (year)."""
         
@@ -401,7 +402,9 @@ class Village:
             self.failure_baby[self.time]['land'] = 0
             self.failure_baby[self.time]['household'] = 0
         if self.time not in self.failure_marry:
-                    self.failure_marry[self.time] = 0
+            self.failure_marry[self.time] = 0
+        if self.time not in self.emigrate:
+            self.emigrate[self.time] = 0
 
         total_new_born = 0
         households = self.households[:]  
@@ -471,23 +474,20 @@ class Village:
             land_quality = self.land_types[household.location]['quality']
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-            if household.id == str(5):
-                print('5 migration')
-
-
             if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
                 # print(f'Poor - Migration qualify for {household.id}')
 
                 self.migrate_household(household, storage_ratio_low)
-                print(f"Migrate{household.id}")
+                # print(f"Migrate{household.id}")
             
             
-
+            # percentage chance, they emigrate.
             if len(household.members) > max_member:
-                household.split_household(self, food_expiration_steps)
-                # print(f"Split {household.id}")
-            else: 
-                pass
+                if emigrate_enabled and random.random() < prob_emigrate:
+                    household.emigrate(self, food_expiration_steps)
+                else:
+                    household.split_household(self, food_expiration_steps)
+
             # self.remove_empty_household()
             household.advance_step()
         for household in households:
@@ -689,9 +689,9 @@ class Village:
             return str(lambda_max)
 
     def plot_simulation_results_second(self, file_name_second):
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(10, 6))
+        plt.subplot(1, 2, 1)
         time_steps = list(range(self.time))
-        # print('self.failure_marry[t]', time_steps)
         failure_counts = [self.failure_marry[t] for t in time_steps]
         plt.plot(time_steps, failure_counts, marker='o')
         plt.xlabel('Time Step', size = 20)
@@ -699,6 +699,17 @@ class Village:
         plt.yticks(size = 20)
         plt.title('Marriage Proposal Failures Over Time', size = 20)
         plt.legend(fontsize=15)
+
+        plt.subplot(1, 2, 2)
+        emigrate_counts = [self.emigrate[t] for t in time_steps]
+        plt.plot(time_steps, emigrate_counts, marker='o')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Failure Frequency', size = 20)
+        plt.yticks(size = 20)
+        plt.title('Emigrants Over Time', size = 20)
+        plt.legend(fontsize=15)
+
+        plt.tight_layout()
         plt.savefig(file_name_second)
         plt.show()
         plt.close()

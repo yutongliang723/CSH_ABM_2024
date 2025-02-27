@@ -87,8 +87,10 @@ def run_simulation(village, vec1_instance, params):
             fertility_scaler=params["fertility_scaler"], 
             work_scale=params["work_scale"], 
             conditions = params['conditions'],
-            spare_food_enabled=params["spare_food_enabled"], 
-            fallow_farming=params["fallow_farming"]
+            prob_emigrate = params['prob_emigrate'],
+            emigrate_enabled = params['emigrate_enabled'],
+            spare_food_enabled=params["spare_food_enabled"],
+            fallow_farming=params["fallow_farming"],
             )
 
 def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):

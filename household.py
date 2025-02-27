@@ -141,9 +141,7 @@ class Household:
         if empty_land_cells:
             new_household_members_ids = set()
             random.shuffle(self.members)
-
             members_to_leave = len(self.members) // 2
-
             count = 0
             for agent in self.members:
                 if count < members_to_leave and agent.marital_status == 'single':
@@ -151,7 +149,6 @@ class Household:
                     count += 1
                     
                 if count < members_to_leave and agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
-                    # print('add members ({}, {})'.format(agent.id, agent.partner_id))
                     new_household_members_ids.add(agent.id)
                     new_household_members_ids.add(agent.partner_id)
                     count += 2 
@@ -169,7 +166,6 @@ class Household:
             
                         
             if len(new_household_members_ids) > 0:
-                # print(new_household_members_ids)
                 raise BaseException('Agent to split not in household {}!'.format(self.id))
 
             new_food_storage = [(f/2, y) for (f, y) in self.food_storage]
@@ -179,14 +175,12 @@ class Household:
             self.luxury_good_storage -= new_luxury_good_storage
             
             new_household = Household(
-               # new_household_id,
                 food_storage=[(new_food_storage, 0)],
                 luxury_good_storage=new_luxury_good_storage,
                 members=new_household_members,
                 location = None,
                 food_expiration_steps = food_expiration_steps
             )
-            # print(new_household_members)
             for m in new_household.members:
                 m.household_id = new_household.id
 
@@ -205,6 +199,34 @@ class Household:
         else:
             # print('ops, no empty land cells to split')
             pass
+
+    def emigrate(self, village, food_expiration_steps):
+        """Handle the splitting of a household where one part emigrates."""
+        new_household_members_ids = set()
+        random.shuffle(self.members)
+        members_to_leave = len(self.members) // 2
+
+        count = 0
+        for agent in self.members:
+            if count < members_to_leave and agent.marital_status == 'single':
+                new_household_members_ids.add(agent.id)
+                count += 1
+            if count < members_to_leave and agent.marital_status == 'married' and agent.partner_id not in new_household_members_ids:
+                new_household_members_ids.add(agent.id)
+                new_household_members_ids.add(agent.partner_id)
+                count += 2
+
+        new_household_members = [m for m in self.members if m.id in new_household_members_ids]
+        
+        for member in new_household_members: # need to make sure it is removed.
+            self.remove_member(member)
+            village.emigrate[village.time] += 1
+        
+        self.food_storage = [(f/2, y) for (f, y) in self.food_storage]
+        self.luxury_good_storage //= 2  # Reduce by half
+            
+        # print(f'Household {self.id} split; {len(new_household_members)} members emigrated.')
+
 
     def create_network_connectivity(self, village, network, include_luxury_goods, f):
         if self.id not in network:
