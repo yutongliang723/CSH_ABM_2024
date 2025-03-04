@@ -488,6 +488,13 @@ class Village:
                 else:
                     household.split_household(self, food_expiration_steps)
 
+            # # percentage chance, they emigrate.
+            # if len(household.members) > max_member:
+            #     if emigrate_enabled and random.random() < prob_emigrate:
+            #         household.emigrate(self, food_expiration_steps)
+            #     else:
+            #         household.split_household(self, food_expiration_steps)
+
             # self.remove_empty_household()
             household.advance_step()
         for household in households:

@@ -21,12 +21,12 @@
         "storage_ratio_low": 0.2,
         "storage_ratio_high": 1.5,
         "land_capacity_low": 1,
-        "max_member": 5,
+        "max_member": 10,
         "excess_food_ratio": 2,
         "trade_back_start": 50,
         "lux_per_year": 3,
         "land_depreciate_factor": 0.01,
-        "fertility_scaler": 1,
+        "fertility_scaler": 2,
         "work_scale": 6,
         "luxury_goods_in_village": 50,
         
@@ -34,14 +34,14 @@
         "file_name_csv": "numerical_output.csv",
         "demog_file":"demog_vectors_scaled.csv",
         "file_name_gif": "simulation_gif.gif",
-        "prob_emigrate": 20,
+        "prob_emigrate": 0.2,
         "spare_food_enabled": true,
-        "fallow_farming":true,
+        "fallow_farming":false,
         "emigrate_enabled": true,
         "conditions":{
                     "use_fertility": true,
-                    "check_gender": false,
-                    "check_marital_status": false,
+                    "check_gender": true,
+                    "check_marital_status": true,
                     "check_land": false,
                     "exceed_member": true 
                     }
