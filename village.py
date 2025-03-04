@@ -42,6 +42,9 @@ class Village:
         self.failure_baby = {}
         self.failure_marry = {}
         self.emigrate = {}
+        self.male = {}
+        self.female = {}
+
 
     def initialize_network(self):
         
@@ -58,7 +61,6 @@ class Village:
                     distance = self.get_distance(household.location, other_household.location)
                     # print('Distance: ', id1.location, id2.location)
                     self.network[household.id]['connectivity'][other_household.id] = 1/distance
-                    # print(other_household.id)
         # self.luxury_goods_in_village = 50
 
 
@@ -96,8 +98,6 @@ class Village:
 
     def update_network_connectivity(self):
         """Updates connectivity based on trading and distance."""
-        # valid_households = [household.id for household in self.households]
-        # print(self.network)
 
         for household_id in list(self.network.keys()):
             # if household_id in valid_households:
@@ -111,8 +111,6 @@ class Village:
                 other_household = self.get_household_by_id(other_id)
                 if household.id != other_household.id:
                     distance = self.get_distance(household.location, other_household.location)
-                    # print('distance', distance)
-                    # print(household.location, other_household.location, ';', household.id, other_household.id)
                     connectivity[other_id] = 1 / distance
                     
     def add_food_village(self, amount):
@@ -154,7 +152,6 @@ class Village:
     
     def update_spare_food_expiration(self):
         current_time = self.time  
-        # print('food in the loop check', self.spare_food)
         self.spare_food = [(amount, age_added) for amount, age_added in self.spare_food if current_time - age_added < self.food_expiration_steps]
 
     def trading(self, excess_food_ratio, trade_back_start, exchange_rate, vec1_instance):
@@ -405,7 +402,12 @@ class Village:
             self.failure_marry[self.time] = 0
         if self.time not in self.emigrate:
             self.emigrate[self.time] = 0
-
+        if self.time not in self.male:
+            male_count = sum(1 for household in self.households for member in household.members if member.gender == 'male')
+            self.male[self.time] = male_count
+        if self.time not in self.female:
+            female_count = sum(1 for household in self.households for member in household.members if member.gender == 'female')
+            self.female[self.time] = female_count
         total_new_born = 0
         households = self.households[:]  
         random.shuffle(households)  # Randomize order to avoid the spare food order issues
@@ -447,19 +449,12 @@ class Village:
 
             for child in newborn_agents:
                 household.extend(child)
-            # print(f"Household {household.id} had {len(newborn_agents)} newborns.")
-        
-            # household.consume_food()
-            # household.consume_food(total_food_needed, self)
 
             household.food_storage.sort(key=lambda x: x[1])
             household.update_food_storage()
             if not len(household.food_storage) == 0:
 
                 consumed = household.remove_food(total_food_needed)
-                # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
-            # else: 
-            #     self.remove_household(self)
 
         self.remove_empty_household()
         print(f"village has {total_new_born} new born.")
@@ -488,14 +483,6 @@ class Village:
                 else:
                     household.split_household(self, food_expiration_steps)
 
-            # # percentage chance, they emigrate.
-            # if len(household.members) > max_member:
-            #     if emigrate_enabled and random.random() < prob_emigrate:
-            #         household.emigrate(self, food_expiration_steps)
-            #     else:
-            #         household.split_household(self, food_expiration_steps)
-
-            # self.remove_empty_household()
             household.advance_step()
         for household in households:
             self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio) 
@@ -520,30 +507,12 @@ class Village:
             land_quality = land['quality']
             land_max_capacity = land['max_capacity']
             land_recovery_rate = land['recovery_rate']
-            farming_intensity = 0
-            # check if there's a household at this location
-            household = next((hh for hh in self.households if hh.location == location), None)
-            
-            if household is not None:
-                farming_intensity = len(household.members)
-
-                if farming_intensity == 0:
-                    # self.remove_household(household)
-                    land['occupied'] = False
-
-                    # land['household_id'] = None
-                    # print(f"Land at {location} is now unoccupied.")
-                
-            else:
-                # If no household is found, land remains unoccupied
-                land['occupied'] = False
-                # land['household_id'] = None
-                # # print(f"Land at {location} remains unoccupied.")            
+            farming_intensity = land['farming_intensity']    
 
             new_quality = (
                         land_quality +
                         land_recovery_rate * (land_max_capacity - land_quality) 
-                        - farming_intensity ** 2 * land_quality * land_depreciate_factor # 0.01 # this 0.01 is an important factor that influence everything, can be changed
+                        - farming_intensity * land_quality * land_depreciate_factor # 0.01 # this 0.01 is an important factor that influence everything, can be changed
                     )
             land['quality'] = max(0, min(new_quality, land_max_capacity))
             # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
@@ -562,7 +531,7 @@ class Village:
                 if household.location == loc:
                     land_snapshot[loc]['household_id'] = household.id
                     land_snapshot[loc]['num_members'] = len(household.members)
-                # print("len(household.members)", len(household.members))
+                
         self.land_usage_over_time.append(land_snapshot)
         self.population.append(sum(len(household.members) for household in self.households))
         self.num_house.append(len(self.households))
@@ -677,8 +646,6 @@ class Village:
                 house_num
             )
         else:self.average_fertility_over_time.append(0)
-        # print(self.land_types)
-        # # print(self.average_fertility_over_time)
 
 
     def get_eigen_value(self, vec1_instance):
@@ -697,7 +664,7 @@ class Village:
 
     def plot_simulation_results_second(self, file_name_second):
         plt.figure(figsize=(10, 6))
-        plt.subplot(1, 2, 1)
+        plt.subplot(2, 2, 1)
         time_steps = list(range(self.time))
         failure_counts = [self.failure_marry[t] for t in time_steps]
         plt.plot(time_steps, failure_counts, marker='o')
@@ -707,13 +674,24 @@ class Village:
         plt.title('Marriage Proposal Failures Over Time', size = 20)
         plt.legend(fontsize=15)
 
-        plt.subplot(1, 2, 2)
+        plt.subplot(2, 2, 2)
         emigrate_counts = [self.emigrate[t] for t in time_steps]
         plt.plot(time_steps, emigrate_counts, marker='o')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Failure Frequency', size = 20)
         plt.yticks(size = 20)
         plt.title('Emigrants Over Time', size = 20)
+        plt.legend(fontsize=15)
+
+        plt.subplot(2, 2, 3)
+        male_counts = [self.male[t] for t in time_steps]
+        female_counts = [self.female[t] for t in time_steps]
+        plt.plot(time_steps, male_counts, marker='o', color = 'blue', label='Male')
+        plt.plot(time_steps, female_counts, marker='o', color = 'red', label='Female')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Count', size = 20)
+        plt.yticks(size = 20)
+        plt.title('Gender Distribution Over Time', size = 20)
         plt.legend(fontsize=15)
 
         plt.tight_layout()
@@ -884,7 +862,7 @@ class Village:
                 if best_agent:
                     chosen_spouse = best_agent
                     # agent.marry(chosen_spouse) 
-                    # print('marry agent ({}, {})'.format(agent.household_id, household.id))
+                    
                     self.marry_agents(agent, chosen_spouse, bride_price_ratio)
                 else:
                     self.failure_marry[self.time] += 1
@@ -898,8 +876,7 @@ class Village:
             if household.get_total_food() > 100: # need to be able to pay bride price
                 for member in household.members:
                     if member.gender != agent.gender and member.household_id != agent.household_id and member.is_alive and marriage_from <= member.age <= marriage_to and member.marital_status == 'single':
-                        # print(agent.household_id == member.household_id)
-                        # print(agent.household_id, member.household_id)
+                        
                         potential_spouses.append(member)
         return potential_spouses
     
@@ -947,7 +924,6 @@ class Village:
     def track_inequality_over_time(self, exchange_rate):
         wealths = self.calculate_wealth(exchange_rate)
         gini_coefficient = self.calculate_gini_coefficient(wealths)
-        # print('gini', gini_coefficient)
         if gini_coefficient is not None:
             self.gini_coefficients.append(gini_coefficient)
         else:
@@ -993,9 +969,7 @@ class Village:
         
         for household in self.households:
             if household.location == land_id:
-                if str(land_id) == str((3, 1)):
-                    print(f'Check notify migration, {land_id}')
                 self.migrate_household(household, storage_ratio_low)
-                # print(f"{household.id} are forced migrate to another land")
+
                   # force the household to migrate
                 break

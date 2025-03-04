@@ -4,27 +4,24 @@ def demog_scale():
     vec1 = pd.read_csv('demog_vectors.csv')
     vec1_copy = vec1.copy()
     vec1 = vec1.rename_axis('age').reset_index()
+    vec1_copy = vec1_copy.rename_axis('age').reset_index()
+
+    # Define new age scaling
     new_max_age = 60
     old_max_age = vec1['age'].max()
     scale_factor = new_max_age / old_max_age
-    scaler = 1
-    other_para = ['rho', 'pstar', 'mortparms']
-    bins = pd.cut(vec1['age'], bins=new_max_age)
-    binned_vec = pd.DataFrame()
-    for col in other_para:
-        binned_col = vec1.groupby(bins, observed=False).agg({col: 'mean'}).reset_index()
-        binned_col[col] = binned_col[col] * scale_factor * scaler
-        binned_vec[col] = binned_col[col]
 
-    bin_centers = [interval.mid for interval in binned_col['age']]
-    binned_vec = binned_vec.rename_axis('age_new').reset_index()
-    binned_vec.loc[binned_vec['age_new'] <= 3, 'pstar'] *= 0.5
+    # Store original values
+    original_age = vec1_copy['age']
+    original_values = {param: vec1_copy[param] for param in list(vec1_copy.columns)}
 
-    binned_vec['mstar'] = vec1['mstar'] * scaler # fertility scale
-    binned_vec['fertparm'] = vec1['fertparm'] * scaler
-    binned_vec['mortscale'] = vec1['mortscale'] * scaler
-    binned_vec['fertscale'] = vec1['fertscale'] *scaler
-    binned_vec['phi'] = vec1['phi']
-    vec1 = binned_vec
-    vec1_copy.to_csv('demog_vectors_scaled.csv')
-    # vec1.to_csv('demog_vectors_scaled.csv')
+    # Shrink only the x-axis (age), keeping y-values the same
+    new_ages = original_age * scale_factor
+
+    # Create a new DataFrame with rescaled ages
+    rescaled_df = pd.DataFrame({'age_rescaled': new_ages})
+    for param in original_values.keys():
+        rescaled_df[param] = original_values[param]  # Keep y-values unchanged
+
+    # vec1_copy.to_csv('demog_vectors_scaled.csv')
+    rescaled_df.to_csv('demog_vectors_scaled.csv')

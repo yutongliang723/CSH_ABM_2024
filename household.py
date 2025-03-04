@@ -70,12 +70,13 @@ class Household:
         else:
             land_quality = village.land_types[self.location]['quality']
             production_amount = 0
+            total_work_output = 0
             for member in self.members:
-                # if member.is_alive:
-                if 1 == 1:
-                    work_output = member.work(vec1, work_scale) 
-                    # print(f'Agent{self.id}produced{work_output}. Agent work or not: {vec1.phi[member.age]}')
-                    production_amount += work_output * land_quality * prod_multiplier
+                total_work_output += member.work(vec1, work_scale)
+
+            scaled_work_output = total_work_output / (total_work_output + village.land_types[self.location]['max_capacity'])
+            production_amount = scaled_work_output * land_quality * prod_multiplier
+            village.land_types[self.location]['farming_intensity'] = scaled_work_output
             # print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
         self.add_food(production_amount)
         self.update_food_storage()

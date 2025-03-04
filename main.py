@@ -96,7 +96,7 @@ def run_simulation(village, vec1_instance, params):
 def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):
     village.plot_simulation_results(file_name, file_name_csv, vec1_instance)
     village.plot_simulation_results_second(file_name_second)
-    village.generate_animation(file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
+    # village.generate_animation(file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
 
 def main():
 
@@ -108,7 +108,6 @@ def main():
     vec1_instance = Vec1(params)
     village = initialize_village(params)
     run_simulation(village, vec1_instance, params)
-    print(village.failure_baby)
     save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, params['file_name_gif'])
     
 if __name__ == "__main__":
