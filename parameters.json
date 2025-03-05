@@ -1,10 +1,10 @@
 {
     "simulation_parameters": 
     {
-        "year": 500,
+        "year": 1000,
         "num_house": 50,
         "land_cells": 56,
-        "prod_multiplier": 3,
+        "prod_multiplier": 2,
         "fishing_discount": 1,
         "fallow_ratio": 50,
         "fallow_period": 5,
@@ -26,8 +26,8 @@
         "trade_back_start": 50,
         "lux_per_year": 3,
         "land_depreciate_factor": 0.01,
-        "fertility_scaler": 4,
-        "work_scale": 10, 
+        "fertility_scaler": 2,
+        "work_scale": 1, 
         "luxury_goods_in_village": 50,
         
         "file_name": "simulation_plots.svg",
@@ -41,7 +41,7 @@
         "conditions":{
                     "use_fertility": true,
                     "check_gender": true,
-                    "check_marital_status": true,
+                    "check_marital_status": false,
                     "check_land": false,
                     "exceed_member": true 
                     }
