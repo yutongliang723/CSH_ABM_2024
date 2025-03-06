@@ -264,3 +264,8 @@ class Household:
         food = sum(amount for amount, _ in self.food_storage)
         luxury = self.luxury_good_storage
         return food + exchange_rate * luxury # 10
+
+    def get_luxury(self):
+        luxury = self.luxury_good_storage
+        return luxury
+    

@@ -75,6 +75,7 @@ def run_simulation(village, vec1_instance, params):
             marriage_from=params["marriage_from"], 
             marriage_to=params["marriage_to"], 
             bride_price_ratio=params["bride_price_ratio"], 
+            bride_price = params['bride_price'],
             exchange_rate=params["exchange_rate"], 
             storage_ratio_low=params["storage_ratio_low"], 
             storage_ratio_high=params["storage_ratio_high"], 
@@ -91,6 +92,7 @@ def run_simulation(village, vec1_instance, params):
             emigrate_enabled = params['emigrate_enabled'],
             spare_food_enabled=params["spare_food_enabled"],
             fallow_farming=params["fallow_farming"],
+            trading_enabled = params['trading_enabled']
             )
 
 def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):
