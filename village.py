@@ -46,6 +46,7 @@ class Village:
         self.emigrate = {}
         self.male = {}
         self.female = {}
+        self.new_born = {}
 
 
     def initialize_network(self):
@@ -411,6 +412,8 @@ class Village:
         if self.time not in self.female:
             female_count = sum(1 for household in self.households for member in household.members if member.gender == 'female')
             self.female[self.time] = female_count
+        if self.time not in self.new_born:
+            self.new_born[self.time] = 0
         total_new_born = 0
         households = self.households[:]  
         random.shuffle(households)  # Randomize order to avoid the spare food order issues
@@ -442,6 +445,7 @@ class Village:
                         newborn_agents.extend(agent.newborn_agents)
                         agent.newborn_agents = []
             total_new_born += len(newborn_agents)
+            self.new_born[self.time] = total_new_born
             self.population_accumulation[-1] += len(newborn_agents)
         
             for agent in dead_agents:
@@ -696,6 +700,15 @@ class Village:
         plt.ylabel('Count', size = 20)
         plt.yticks(size = 20)
         plt.title('Gender Distribution Over Time', size = 20)
+        plt.legend(fontsize=15)
+
+        new_born_all = [self.new_born[t] for t in time_steps]
+        plt.subplot(2, 2, 4)
+        plt.plot(time_steps,new_born_all)
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Count', size = 20)
+        plt.yticks(size = 20)
+        plt.title('New Born Over Time', size = 20)
         plt.legend(fontsize=15)
 
         plt.tight_layout()
