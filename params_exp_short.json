@@ -1,0 +1,54 @@
+{
+    "simulation_parameters": {
+        "year": [1000],  
+        "num_house": [40],  
+        "land_cells": [60],  
+        "prod_multiplier": [2],  
+        "fishing_discount": [1],  
+        "fallow_ratio": [0],  
+        "fallow_period": [5],  
+        "food_expiration_steps": [2],  
+        "marriage_from": [10],  
+        "marriage_to": [60],  
+        "bride_price_ratio": [0.1],  
+        "bride_price": [2],  
+        "land_ecovery_rate": [0.03],  
+        "land_max_capacity": [20],  
+        "initial_quality": [2, 5],  
+        "fish_chance": [0.1],  
+        "exchange_rate": [10],  
+        "luxury_good_storage": [50],  
+        "storage_ratio_low": [0.2],  
+        "storage_ratio_high": [1.5],  
+        "land_capacity_low": [1],  
+        "max_member": [20],  
+        "excess_food_ratio": [1.5],  
+        "trade_back_start": [20],  
+        "lux_per_year": [1],  
+        "land_depreciate_factor": [0.01],  
+        "fertility_scaler": [2],  
+        "work_scale": [5, 50],  
+        "luxury_goods_in_village": [20],  
+        
+        "file_name": ["simulation_plots.svg"],
+        "file_name_csv": ["numerical_output.csv"],
+        "demog_file": ["demog_vectors_scaled.csv"],
+        "file_name_gif": ["simulation_gif.gif"],
+        
+        "prob_emigrate": [0.2],  
+        "farming_counter_max": [5],  
+
+        "spare_food_enabled": [true],  
+        "fallow_farming": [true],  
+        "emigrate_enabled": [true],  
+        "trading_enabled": [true],  
+
+        "conditions": {
+            "use_fertility": [true],  
+            "check_gender": [true],  
+            "check_marital_status": [true],  
+            "check_land": [false],  
+            "exceed_member": [true]  
+        }
+    }
+}

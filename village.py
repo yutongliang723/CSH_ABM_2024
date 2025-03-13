@@ -721,8 +721,8 @@ class Village:
 
         plt.tight_layout()
         plt.savefig(file_name_second)
-        plt.show()
-        plt.close()
+        # plt.show()
+        # plt.close()
 
     
 
@@ -829,27 +829,27 @@ class Village:
 
         plt.tight_layout()
         plt.savefig(file_name)
-        plt.show()
-        plt.close()
+        # plt.show()
+        # plt.close()
 
-        eigen = self.get_eigen_value(vec1_instance)
+        # eigen = self.get_eigen_value(vec1_instance)
 
-        metrics = {
-            "Population Over Time": self.population_over_time,
-            "Occupied Land Capacity": self.land_capacity_over_time,
-            "All Land Capacity": self.land_capacity_over_time_all,
-            "Food Storage Over Time": self.food_storage_over_time,
-            "Average Household Fertility": self.average_fertility_over_time,
-            "Average Age Over Time": self.average_age,
-            "Average Life Span Over Time": self.average_life_span[1:],
-            "Accumulated Population": self.population_accumulation[1:],
-            "Gini Coefficients": self.gini_coefficients
-        }
+        # metrics = {
+        #     "Population Over Time": self.population_over_time,
+        #     "Occupied Land Capacity": self.land_capacity_over_time,
+        #     "All Land Capacity": self.land_capacity_over_time_all,
+        #     "Food Storage Over Time": self.food_storage_over_time,
+        #     "Average Household Fertility": self.average_fertility_over_time,
+        #     "Average Age Over Time": self.average_age,
+        #     "Average Life Span Over Time": self.average_life_span[1:],
+        #     "Accumulated Population": self.population_accumulation[1:],
+        #     "Gini Coefficients": self.gini_coefficients
+        # }
         
-        metrics_df = pd.DataFrame(metrics)
-        metrics_df["Eigenvalue"] = pd.NA
-        metrics_df.loc[0, "Eigenvalue"] = eigen 
-        metrics_df.to_csv(file_name_csv, index=False)            
+        # metrics_df = pd.DataFrame(metrics)
+        # metrics_df["Eigenvalue"] = pd.NA
+        # metrics_df.loc[0, "Eigenvalue"] = eigen 
+        # metrics_df.to_csv(file_name_csv, index=False)            
 
     def get_agent_by_id(self, agent_id):
         for household in self.households:
