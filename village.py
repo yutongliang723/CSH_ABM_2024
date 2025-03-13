@@ -253,6 +253,15 @@ class Village:
             pass
     
 
+    def check_migration(self):
+        """Handle the migration of a household to a new land cell if necessary."""
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
+        
+        if empty_land_cells:
+            return True
+
+
+
     def get_distance(self, location1, location2):
         x1, y1 = location1
         x2, y2 = location2
@@ -1034,14 +1043,17 @@ class Village:
             lands_to_fallow = [land_id for land_id, data in sorted_lands if data['farming_counter'] >= farming_counter_max]
 
             for land_id in lands_to_fallow:
-                self.land_types[land_id]['fallow'] = True
-                self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
-                self.land_types[land_id]['farming_counter'] = 0
-                # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
-            
-                # If the land is occupied, notify the household to migrate
-                if self.land_types[land_id]['occupied']:
-                    self.notify_household_to_migrate(land_id, storage_ratio_low)
+                if self.check_migration():
+                    self.land_types[land_id]['fallow'] = True
+                    self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
+                    self.land_types[land_id]['farming_counter'] = 0
+                    # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
+                
+                    # If the land is occupied, notify the household to migrate
+                    if self.land_types[land_id]['occupied']:
+                        self.notify_household_to_migrate(land_id, storage_ratio_low)
+                else:
+                    self.notify_household_to_migrate(land_id, storage_ratio_low) # will be put on the migration_priority list
 
             # reduce timers for lands that are already fallow and restore them if the timer expires
             for land_id, land_data in self.land_types.items():

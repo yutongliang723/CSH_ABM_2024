@@ -38,7 +38,7 @@
         "prob_emigrate": 0.2,
         "farming_counter_max": 10,
         "spare_food_enabled": true,
-        "fallow_farming":true,
+        "fallow_farming":false,
         "emigrate_enabled": false,
         "trading_enabled": true,
         "conditions":{
