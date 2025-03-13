@@ -92,7 +92,8 @@ def run_simulation(village, vec1_instance, params):
             emigrate_enabled = params['emigrate_enabled'],
             spare_food_enabled=params["spare_food_enabled"],
             fallow_farming=params["fallow_farming"],
-            trading_enabled = params['trading_enabled']
+            trading_enabled = params['trading_enabled'],
+            farming_counter_max = params['farming_counter_max']
             )
 
 def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):

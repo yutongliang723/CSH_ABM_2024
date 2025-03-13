@@ -77,6 +77,7 @@ class Household:
             scaled_work_output = total_work_output / (total_work_output + village.land_types[self.location]['max_capacity'])
             production_amount = scaled_work_output * land_quality * prod_multiplier
             village.land_types[self.location]['farming_intensity'] = scaled_work_output
+            village.land_types[self.location]['farming_counter'] += 1
             # print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
         self.add_food(production_amount)
         self.update_food_storage()

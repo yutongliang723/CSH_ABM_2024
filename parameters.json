@@ -1,7 +1,7 @@
 {
     "simulation_parameters": 
     {
-        "year": 1000,
+        "year": 500, 
         "num_house": 50,
         "land_cells": 56,
         "prod_multiplier": 2,
@@ -28,7 +28,7 @@
         "lux_per_year": 1,
         "land_depreciate_factor": 0.01,
         "fertility_scaler": 2,
-        "work_scale": 2, 
+        "work_scale": 50, 
         "luxury_goods_in_village": 50,
         
         "file_name": "simulation_plots.svg",
@@ -36,9 +36,10 @@
         "demog_file":"demog_vectors_scaled.csv",
         "file_name_gif": "simulation_gif.gif",
         "prob_emigrate": 0.2,
+        "farming_counter_max": 10,
         "spare_food_enabled": true,
         "fallow_farming":true,
-        "emigrate_enabled": true,
+        "emigrate_enabled": false,
         "trading_enabled": true,
         "conditions":{
                     "use_fertility": true,

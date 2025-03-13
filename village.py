@@ -47,6 +47,7 @@ class Village:
         self.male = {}
         self.female = {}
         self.new_born = {}
+        self.migrate_priority = []
 
 
     def initialize_network(self):
@@ -231,7 +232,6 @@ class Village:
         
         if empty_land_cells:
 
-            
             sorted_land_cells = sorted(
                                         empty_land_cells,
                                         key=lambda x: self.get_distance(household.location, x[0]) - 0.5 * x[1]['quality']
@@ -243,24 +243,15 @@ class Village:
             migrate_cost = sum(amount for amount, _ in household.food_storage) * storage_ratio_low
             """ Pay for the migration """            
             household.deduct_food(migrate_cost)
+            if household.id in self.migrate_priority:
+                self.migrate_priority.remove(household.id) # if it was in the priority list, then remove after successfully migrated.
             
-            if str(household.id) == '5':
-                print(f"Household {household.id} migrated to {household.location}.")
-                print("empty_land_cells", empty_land_cells) # (3, 1) is in it.
         else:
+            if not household.id in self.migrate_priority:
+                self.migrate_priority.append(household.id)
             # print(f"Household {household.id} failed moving because there is no more space.")
             pass
     
-
-    # def deduct_food(household, amount_due):
-    #     while amount_due > 0 and household.food_storage:
-    #         amount, age_added = household.food_storage[0]
-    #         if amount > amount_due:
-    #             household.food_storage[0] = (amount - amount_due, age_added)
-    #             amount_due = 0
-    #         else:
-    #             household.food_storage.pop(0)
-    #             amount_due -= amount
 
     def get_distance(self, location1, location2):
         x1, y1 = location1
@@ -277,6 +268,8 @@ class Village:
         
         for household in empty_households:
             self.remove_household(household)
+            if household.id in self.migrate_priority:
+                self.migrate_priority.remove(household.id)
 
 
     def remove_household(self, household):
@@ -384,7 +377,7 @@ class Village:
             # total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
         
         """Run a single simulation step (year)."""
         
@@ -470,6 +463,12 @@ class Village:
         else:
             # print('average_life_span', self.average_life_span)
             self.average_life_span.append(self.average_life_span[-1])
+        
+        for hh_id in self.migrate_priority:
+            hh = self.get_household_by_id(hh_id)
+
+            self.migrate_household(hh, storage_ratio_low)
+        print("self.migrate_priority", self.migrate_priority)
 
         for household in households:
             total_food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
@@ -504,7 +503,7 @@ class Village:
             self.manage_luxury_goods(exchange_rate, excess_food_ratio, vec1_instance)
             self.trading(excess_food_ratio, trade_back_start, exchange_rate, vec1_instance)
         if fallow_farming:
-            self.update_fallow_land(fallow_ratio, fallow_period, storage_ratio_low)
+            self.update_fallow_land(fallow_ratio, fallow_period, storage_ratio_low, farming_counter_max)
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += lux_per_year        
@@ -973,38 +972,38 @@ class Village:
             self.gini_coefficients_luxury.append(0)
     
     
-    def update_fallow_land(self, fallow_ratio, fallow_period, storage_ratio_low):
-        """Update land plots every year to manage the fallow cycle."""
-        if self.time < fallow_period:
-            return
-        # decide how many lands to fallow
-        total_land = len(self.land_types)
-        num_lands_to_fallow = max(1, total_land // fallow_ratio)
+    # def update_fallow_land(self, fallow_ratio, fallow_period, storage_ratio_low):
+    #     """Update land plots every year to manage the fallow cycle."""
+    #     if self.time < fallow_period:
+    #         return
+    #     # decide how many lands to fallow
+    #     total_land = len(self.land_types)
+    #     num_lands_to_fallow = max(1, total_land * fallow_ratio)
 
-        #sort lands by quality
-        available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
-        sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
+    #     #sort lands by quality
+    #     available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
+    #     sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
         
-        # select lands to fallow
-        lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
+    #     # select lands to fallow
+    #     lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
 
-        for land_id in lands_to_fallow:
-            self.land_types[land_id]['fallow'] = True
-            self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
-            # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
+    #     for land_id in lands_to_fallow:
+    #         self.land_types[land_id]['fallow'] = True
+    #         self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
+    #         # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
         
-            # If the land is occupied, notify the household to migrate
-            if self.land_types[land_id]['occupied']:
-                self.notify_household_to_migrate(land_id, storage_ratio_low)
+    #         # If the land is occupied, notify the household to migrate
+    #         if self.land_types[land_id]['occupied']:
+    #             self.notify_household_to_migrate(land_id, storage_ratio_low)
 
-        # reduce timers for lands that are already fallow and restore them if the timer expires
-        for land_id, land_data in self.land_types.items():
-            if land_data['fallow']:
-                land_data['fallow_timer'] -= 1
-                if land_data['fallow_timer'] <= 0:
-                    land_data['fallow'] = False
-                    # print(f"Land plot {land_id} is no longer fallow.")
-        # print('land types', self.land_types)
+    #     # reduce timers for lands that are already fallow and restore them if the timer expires
+    #     for land_id, land_data in self.land_types.items():
+    #         if land_data['fallow']:
+    #             land_data['fallow_timer'] -= 1
+    #             if land_data['fallow_timer'] <= 0:
+    #                 land_data['fallow'] = False
+    #                 # print(f"Land plot {land_id} is no longer fallow.")
+    #     # print('land types', self.land_types)
 
     def notify_household_to_migrate(self, land_id, storage_ratio_low):
         """Notify the household occupying the land to migrate."""
@@ -1013,6 +1012,42 @@ class Village:
         for household in self.households:
             if household.location == land_id:
                 self.migrate_household(household, storage_ratio_low)
-
                   # force the household to migrate
                 break
+
+
+    def update_fallow_land(self, fallow_ratio, fallow_period, storage_ratio_low,farming_counter_max):
+            """Update land plots every year to manage the fallow cycle."""
+            if self.time < fallow_period:
+                return
+            # decide how many lands to fallow
+            total_land = len(self.land_types)
+            print(total_land)
+            num_lands_to_fallow = max(1, total_land * fallow_ratio) #TODO: do we need it still when counter is introduced?
+
+            #sort lands by quality
+            available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
+            sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
+            print(len(available_lands))
+            # select lands to fallow
+            # lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
+            lands_to_fallow = [land_id for land_id, data in sorted_lands if data['farming_counter'] >= farming_counter_max]
+
+            for land_id in lands_to_fallow:
+                self.land_types[land_id]['fallow'] = True
+                self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
+                self.land_types[land_id]['farming_counter'] = 0
+                # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
+            
+                # If the land is occupied, notify the household to migrate
+                if self.land_types[land_id]['occupied']:
+                    self.notify_household_to_migrate(land_id, storage_ratio_low)
+
+            # reduce timers for lands that are already fallow and restore them if the timer expires
+            for land_id, land_data in self.land_types.items():
+                if land_data['fallow']:
+                    land_data['fallow_timer'] -= 1
+                    if land_data['fallow_timer'] <= 0:
+                        land_data['fallow'] = False
+                        # print(f"Land plot {land_id} is no longer fallow.")
+            # print('land types', self.land_types)

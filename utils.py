@@ -41,8 +41,8 @@ def generate_random_village(num_households, num_land_cells, vec1_instance, food_
             'fallow': False,      
             'fallow_timer': 0,
             # 'fishing': random.random() < fish_chance  # 30% chance of being True
-            'farming_intensity': 0
-
+            'farming_intensity': 0,
+            'farming_counter': 0
         }
 
     households = []
