@@ -24,9 +24,12 @@ class Village:
         self.land_capacity_over_time = []
         self.land_capacity_over_time_all = []
         self.food_storage_over_time = []
+        self.luxury_goods_over_time = []
         self.land_usage_over_time = []
         self.average_fertility_over_time = []
         self.average_life_span = [0]
+        self.num_households = []
+        self.num_migrated = []
         self.network = {}
         self.network_relation = {}
         self.spare_food = []
@@ -48,6 +51,7 @@ class Village:
         self.female = {}
         self.new_born = {}
         self.migrate_priority = []
+        self.migrate_counter = 0
 
 
     def initialize_network(self):
@@ -477,7 +481,7 @@ class Village:
             hh = self.get_household_by_id(hh_id)
 
             self.migrate_household(hh, storage_ratio_low)
-        print("self.migrate_priority", self.migrate_priority)
+        # print("self.migrate_priority", self.migrate_priority)
 
         for household in households:
             total_food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
@@ -515,7 +519,8 @@ class Village:
             self.update_fallow_land(fallow_ratio, fallow_period, storage_ratio_low, farming_counter_max)
         self.update_network_connectivity()
         self.time += 1
-        self.luxury_goods_in_village += lux_per_year        
+        self.luxury_goods_in_village += lux_per_year 
+        
     
     def update_land_capacity(self, land_depreciate_factor):
         """Update the land quality for each land cell in the village."""
@@ -649,12 +654,19 @@ class Village:
         sum(amount for amount, _ in household.food_storage)  # Sum the amounts in each tuple
         for household in self.households)
 
+        total_luxury = sum(
+        household.luxury_good_storage  # sum the amounts in each tuple
+        for household in self.households)
+
         self.population_over_time.append(population)
         self.land_capacity_over_time.append(land_capacity)
         self.food_storage_over_time.append(total_food)
+        self.luxury_goods_over_time.append(total_luxury)
         self.land_capacity_over_time_all.append(land_capcity_all)
         self.track_inequality_over_time(exchange_rate)
         self.networks.append(self.combined_network())
+        self.num_households.append(len(self.households))
+        self.num_migrated.append(self.migrate_counter)
         house_num = sum(len(household.members) for household in self.households)
         if house_num != 0:
             self.average_fertility_over_time.append(
@@ -676,11 +688,11 @@ class Village:
 
             eigvals, eigvecs = sl.eig(m1)  # sompute eigenvalues and eigenvectors
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
-            return str(lambda_max)
+            return str(round(lambda_max, 2))
 
     def plot_simulation_results_second(self, file_name_second):
-        plt.figure(figsize=(10, 6))
-        plt.subplot(2, 2, 1)
+        plt.figure(figsize=(18, 12))
+        plt.subplot(2, 3, 1)
         time_steps = list(range(self.time))
         failure_counts = [self.failure_marry[t] for t in time_steps]
         plt.plot(time_steps, failure_counts, marker='o')
@@ -690,7 +702,7 @@ class Village:
         plt.title('Marriage Proposal Failures Over Time', size = 20)
         plt.legend(fontsize=15)
 
-        plt.subplot(2, 2, 2)
+        plt.subplot(2, 3, 2)
         emigrate_counts = [self.emigrate[t] for t in time_steps]
         plt.plot(time_steps, emigrate_counts, marker='o')
         plt.xlabel('Time Step', size = 20)
@@ -699,7 +711,7 @@ class Village:
         plt.title('Emigrants Over Time', size = 20)
         plt.legend(fontsize=15)
 
-        plt.subplot(2, 2, 3)
+        plt.subplot(2, 3, 3)
         male_counts = [self.male[t] for t in time_steps]
         female_counts = [self.female[t] for t in time_steps]
         plt.plot(time_steps, male_counts, color = 'blue', label='Male')
@@ -711,12 +723,28 @@ class Village:
         plt.legend(fontsize=15)
 
         new_born_all = [self.new_born[t] for t in time_steps]
-        plt.subplot(2, 2, 4)
+        plt.subplot(2, 3, 4)
         plt.plot(time_steps,new_born_all)
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Count', size = 20)
         plt.yticks(size = 20)
         plt.title('New Born Over Time', size = 20)
+        plt.legend(fontsize=15)
+
+        plt.subplot(2, 3, 5)
+
+        time_steps = range(self.time)
+        reasons = ["fertility", "gender", "marriage", "land", "household"]
+
+        data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
+
+        for reason in reasons:
+            plt.plot(time_steps, data[reason], label=reason)
+
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Failure Frequency', size = 20)
+        plt.yticks(size = 20)
+        plt.title('Failed Reproduction Reasons Over Time', size = 20)
         plt.legend(fontsize=15)
 
         plt.tight_layout()
@@ -761,8 +789,18 @@ class Village:
         plt.legend(fontsize = 15)
         plt.title('Food Storage Over Time', size = 20)
 
-        # Plot 4: Average Fertility over time
         plt.subplot(3, 3, 4)
+        plt.plot(self.luxury_goods_over_time, label='Luxury Goods')
+        plt.xlabel('Time Step', size = 20)
+        plt.ylabel('Food Storage', size = 20)
+        # plt.xticks(size = 20)
+        plt.yticks(size = 20)
+        plt.legend(fontsize = 15)
+        plt.title('Luxury Goods Over Time', size = 20)
+
+
+        # Plot 4: Average Fertility over time
+        plt.subplot(3, 3, 5)
         plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Average Household Fertility', size = 20)
@@ -772,7 +810,7 @@ class Village:
         plt.title('Average Fertility Over Time', size = 20)
 
         # Plot 5: Average Age over time
-        plt.subplot(3, 3, 5)
+        plt.subplot(3, 3, 6)
         plt.plot(self.average_age, label='Avg. Age')
         plt.xlabel('Time Step',size = 20)
         plt.ylabel('Average Age', size = 20)
@@ -782,7 +820,7 @@ class Village:
         plt.title('Average Age Over Time', size = 20)
 
         # Plot 6: Average Life Span over time
-        plt.subplot(3, 3, 6)
+        plt.subplot(3, 3, 7)
         plt.plot(self.average_life_span, label='Avg. Life Span')
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Average Life Span', size = 20)
@@ -791,7 +829,7 @@ class Village:
         plt.legend(fontsize = 15)
         plt.title('Average Life Span Over Time', size = 20)
 
-        plt.subplot(3, 3, 7)
+        plt.subplot(3, 3, 8)
         plt.plot(self.population_accumulation, label='Accumulated Population', color='orange')
         plt.xlabel('Time Step', size=20)
         plt.ylabel('Accumulated Population', size=20)
@@ -799,7 +837,7 @@ class Village:
         plt.legend(fontsize = 15)
         plt.title('Accumulated Population', size=20)
 
-        plt.subplot(3, 3, 8)
+        plt.subplot(3, 3, 9)
         plt.plot(self.gini_coefficients, color = 'blue',label = "Total Gini")
         plt.plot(self.gini_coefficients_food, color = 'green',label = "Food Gini")
         plt.plot(self.gini_coefficients_luxury, color = 'orange',label = "Luxury Gini")
@@ -809,22 +847,6 @@ class Village:
         plt.legend(fontsize = 15)
         plt.title('Inequality Over Time', size = 20)
 
-
-        plt.subplot(3, 3, 9)
-
-        time_steps = range(self.time)
-        reasons = ["fertility", "gender", "marriage", "land", "household"]
-
-        data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
-
-        for reason in reasons:
-            plt.plot(time_steps, data[reason], label=reason)
-
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Failure Frequency', size = 20)
-        plt.yticks(size = 20)
-        plt.title('Failed Reproduction Reasons Over Time', size = 20)
-        plt.legend(fontsize=15)
 
 
         plt.tight_layout()
@@ -980,39 +1002,6 @@ class Village:
         else:
             self.gini_coefficients_luxury.append(0)
     
-    
-    # def update_fallow_land(self, fallow_ratio, fallow_period, storage_ratio_low):
-    #     """Update land plots every year to manage the fallow cycle."""
-    #     if self.time < fallow_period:
-    #         return
-    #     # decide how many lands to fallow
-    #     total_land = len(self.land_types)
-    #     num_lands_to_fallow = max(1, total_land * fallow_ratio)
-
-    #     #sort lands by quality
-    #     available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
-    #     sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
-        
-    #     # select lands to fallow
-    #     lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
-
-    #     for land_id in lands_to_fallow:
-    #         self.land_types[land_id]['fallow'] = True
-    #         self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
-    #         # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
-        
-    #         # If the land is occupied, notify the household to migrate
-    #         if self.land_types[land_id]['occupied']:
-    #             self.notify_household_to_migrate(land_id, storage_ratio_low)
-
-    #     # reduce timers for lands that are already fallow and restore them if the timer expires
-    #     for land_id, land_data in self.land_types.items():
-    #         if land_data['fallow']:
-    #             land_data['fallow_timer'] -= 1
-    #             if land_data['fallow_timer'] <= 0:
-    #                 land_data['fallow'] = False
-    #                 # print(f"Land plot {land_id} is no longer fallow.")
-    #     # print('land types', self.land_types)
 
     def notify_household_to_migrate(self, land_id, storage_ratio_low):
         """Notify the household occupying the land to migrate."""
@@ -1021,6 +1010,7 @@ class Village:
         for household in self.households:
             if household.location == land_id:
                 self.migrate_household(household, storage_ratio_low)
+                self.migrate_counter += 1 # record how many people migrated
                   # force the household to migrate
                 break
 
@@ -1030,14 +1020,13 @@ class Village:
             if self.time < fallow_period:
                 return
             # decide how many lands to fallow
-            total_land = len(self.land_types)
-            print(total_land)
-            num_lands_to_fallow = max(1, total_land * fallow_ratio) #TODO: do we need it still when counter is introduced?
+            # total_land = len(self.land_types)
+            # print(total_land)
+            # num_lands_to_fallow = max(1, total_land * fallow_ratio) #TODO: do we need it still when counter is introduced?
 
             #sort lands by quality
             available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
             sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
-            print(len(available_lands))
             # select lands to fallow
             # lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
             lands_to_fallow = [land_id for land_id, data in sorted_lands if data['farming_counter'] >= farming_counter_max]

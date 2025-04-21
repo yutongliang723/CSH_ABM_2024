@@ -2,12 +2,12 @@
     "simulation_parameters": 
     {
         "year": 500, 
-        "num_house": 50,
+        "num_house": 20,
         "land_cells": 56,
         "prod_multiplier": 2,
         "fishing_discount": 1,
         "fallow_ratio": 50,
-        "fallow_period": 5,
+        "fallow_period": 2,
         "food_expiration_steps": 3,
         "marriage_from": 5,
         "marriage_to": 55,
@@ -38,7 +38,7 @@
         "prob_emigrate": 0.2,
         "farming_counter_max": 10,
         "spare_food_enabled": true,
-        "fallow_farming":false,
+        "fallow_farming":true,
         "emigrate_enabled": false,
         "trading_enabled": true,
         "conditions":{

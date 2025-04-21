@@ -107,7 +107,18 @@ def run_experiment(experiment_id, params, param_values, condition_values):
 
     
     eigen = village.get_eigen_value(vec1_instance)
-    
+    import statistics
+
+    def compute_stats(values):
+        if not values:
+            return {"min": None, "avg": None, "max": None, "std": None}
+        return {
+            "min": min(values),
+            "avg": sum(values) / len(values),
+            "max": max(values),
+            "std": statistics.stdev(values) if len(values) > 1 else 0
+        }
+
     metrics = {
         "Population Over Time": village.population_over_time,
         "Occupied Land Capacity": village.land_capacity_over_time,
@@ -117,10 +128,14 @@ def run_experiment(experiment_id, params, param_values, condition_values):
         "Average Age Over Time": village.average_age,
         "Average Life Span Over Time": village.average_life_span[1:],
         "Accumulated Population": village.population_accumulation[1:],
-        "Gini Coefficients": village.gini_coefficients
+        "Gini Coefficients": village.gini_coefficients,
+        "# Households": village.num_households,
+        "# Migrants": village.num_migrated
     }
+    village.migrate_counter = 0 # to reset the migration records per year      
     
-    avg_metrics = {k: sum(v) / len(v) if v else None for k, v in metrics.items()}
+    avg_metrics = {k: compute_stats(v) for k, v in metrics.items()}
+    # avg_metrics = {k: sum(v) / len(v) if v else None for k, v in metrics.items()} # getting the average of the list for each output para
     avg_metrics.update({
         "Experiment ID": experiment_id,
         "Timestamp": timestamp,

@@ -4,3 +4,6 @@ __pycache__/*
 */*.pyc
 __pycache__/
 run_results/
+experiment_results/
+experiment_results_1/
+experiment_results_2/
