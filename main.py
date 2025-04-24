@@ -54,7 +54,7 @@ def initialize_village(params):
     land_ecovery_rate=params["land_ecovery_rate"], 
     land_max_capacity=params["land_max_capacity"],
     initial_quality=params["initial_quality"], 
-    fish_chance=params["fish_chance"], 
+    # fish_chance=params["fish_chance"], 
     fallow_period=params["fallow_period"], 
     luxury_goods_in_village=params["luxury_goods_in_village"]
 )

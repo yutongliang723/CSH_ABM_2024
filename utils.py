@@ -27,7 +27,7 @@ def generate_random_household(num_members, location, vec1_instance, food_expirat
     
     return new_household
 
-def generate_random_village(num_households, num_land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fish_chance, fallow_period, luxury_goods_in_village):
+def generate_random_village(num_households, num_land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fallow_period, luxury_goods_in_village):
     """Generate a village with a specified number of households and land cells."""
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}

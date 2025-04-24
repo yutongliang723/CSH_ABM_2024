@@ -65,7 +65,7 @@ def run_simulation():
             "bride_price": 2,
             "land_max_capacity": 20,
             "initial_quality": 5,
-            "fish_chance": 0.3,
+            # "fish_chance": 0.3,
             "exchange_rate": 3,
             "luxury_good_storage": 50,
             "storage_ratio_low": 0.2,
@@ -124,7 +124,7 @@ def run_simulation():
         land_ecovery_rate=params["land_ecovery_rate"],
         land_max_capacity=params["land_max_capacity"],
         initial_quality=params["initial_quality"],
-        fish_chance=params["fish_chance"],
+        # fish_chance=params["fish_chance"],
         fallow_period=params["fallow_period"],
         luxury_goods_in_village=params["luxury_goods_in_village"]
     )

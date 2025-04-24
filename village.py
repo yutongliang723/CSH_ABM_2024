@@ -395,7 +395,7 @@ class Village:
         """Run a single simulation step (year)."""
         
         
-        print(f"\nSimulation Year {self.time}")
+        # print(f"\nSimulation Year {self.time}")
         # print(self.land_types)
         self.update_network_connectivity()
         longevities = []
@@ -470,7 +470,7 @@ class Village:
                 consumed = household.remove_food(total_food_needed)
 
         self.remove_empty_household()
-        print(f"village has {total_new_born} new born.")
+        # print(f"village has {total_new_born} new born.")
         if longevities:
             self.average_life_span.append(sum(longevities)/len(longevities))
         else:

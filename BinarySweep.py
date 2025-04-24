@@ -27,18 +27,60 @@ def load_experiment_parameters(file_path="params_exp_short.json"):
         logging.error(f"Error loading parameters: {e}")
         sys.exit(1)
 
+# def get_param_combinations(params):
+#     param_keys = [k for k in params.keys() if k != "conditions"]
+#     condition_keys = list(params["conditions"].keys())
+    
+#     param_values = [params[k] if isinstance(params[k], list) else [params[k]] for k in param_keys]
+#     condition_values = [params["conditions"][k] if isinstance(params["conditions"][k], list) else [params["conditions"][k]] for k in condition_keys]
+    
+#     param_combinations = list(itertools.product(*param_values))
+#     condition_combinations = list(itertools.product(*condition_values))
+    
+#     all_combinations = list(itertools.product(param_combinations, condition_combinations))
+#     return param_keys, condition_keys, all_combinations
+
 def get_param_combinations(params):
-    param_keys = [k for k in params.keys() if k != "conditions"]
-    condition_keys = list(params["conditions"].keys())
-    
-    param_values = [params[k] if isinstance(params[k], list) else [params[k]] for k in param_keys]
-    condition_values = [params["conditions"][k] if isinstance(params["conditions"][k], list) else [params["conditions"][k]] for k in condition_keys]
-    
-    param_combinations = list(itertools.product(*param_values))
-    condition_combinations = list(itertools.product(*condition_values))
-    
-    all_combinations = list(itertools.product(param_combinations, condition_combinations))
-    return param_keys, condition_keys, all_combinations
+    import copy
+
+    param_keys = [k for k in params if k != "conditions"]
+    condition_keys = list(params.get("conditions", {}).keys())
+
+    all_experiments = []
+
+    # Get base (first) values
+    base_param_values = [params[k][0] if isinstance(params[k], list) else params[k] for k in param_keys]
+    base_condition_values = [params["conditions"][k][0] if isinstance(params["conditions"][k], list) else params["conditions"][k] for k in condition_keys]
+
+    def replace_and_tuple(base_list, index, new_value):
+        temp = copy.deepcopy(base_list)
+        temp[index] = new_value
+        return tuple(temp)
+
+    # Vary one parameter at a time
+    for i, key in enumerate(param_keys):
+        values = params[key] if isinstance(params[key], list) else [params[key]]
+        for v in values:
+            if v == base_param_values[i]:
+                continue  # skip base value (avoid duplicates)
+            param_tuple = replace_and_tuple(base_param_values, i, v)
+            condition_tuple = tuple(base_condition_values)
+            all_experiments.append((param_tuple, condition_tuple))
+
+    # Vary one condition at a time
+    for i, key in enumerate(condition_keys):
+        values = params["conditions"][key] if isinstance(params["conditions"][key], list) else [params["conditions"][key]]
+        for v in values:
+            if v == base_condition_values[i]:
+                continue  # skip base value
+            param_tuple = tuple(base_param_values)
+            condition_tuple = replace_and_tuple(base_condition_values, i, v)
+            all_experiments.append((param_tuple, condition_tuple))
+
+    # Add base case as the first experiment
+    all_experiments.insert(0, (tuple(base_param_values), tuple(base_condition_values)))
+
+    return param_keys, condition_keys, all_experiments
 
 def make_clickable_image(relative_path):
     """Creates an HTML clickable image link for local files."""
@@ -156,16 +198,16 @@ def main():
     params = load_experiment_parameters()
     global param_keys, condition_keys
     param_keys, condition_keys, all_combinations = get_param_combinations(params)
-    
+    n = 0 
     results = []
-    
     for experiment_id, (param_values, condition_values) in enumerate(all_combinations):
         logging.info(f"Running experiment {experiment_id + 1}/{len(all_combinations)}")
         avg_metrics = run_experiment(experiment_id, params.copy(), param_values, condition_values)
         results.append(avg_metrics)
-    
+        print(f"Simulation round {n}.")
+        n += 1
+
     results_df = pd.DataFrame(results)
-    
     # Reorder columns to have ID, Timestamp, and file paths first
     column_order = ["Experiment ID", "Timestamp", "Image Path 1", "Image Path 2"] + [col for col in results_df.columns if col not in ["Experiment ID", "Timestamp", "Image Path 1", "Image Path 2"]]
     results_df = results_df[column_order]
