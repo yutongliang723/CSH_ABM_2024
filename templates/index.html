@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
+            background-color: #eef2f7;
             color: #333;
             display: flex;
             justify-content: center;
@@ -18,39 +18,61 @@
 
         #container {
             width: 90%;
-            max-width: 800px;
+            max-width: 900px;
             background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
             text-align: center;
         }
 
         form {
             display: grid;
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
 
         label {
             font-weight: bold;
-            margin-top: 5px;
+            display: block;
+            margin-bottom: 5px;
         }
 
         input[type="number"], input[type="checkbox"] {
+            width: 100%;
             padding: 8px;
             border-radius: 4px;
             border: 1px solid #ccc;
             font-size: 1em;
         }
 
+        .note {
+            font-size: 0.9em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            grid-column: span 2;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
         button {
             background-color: #4a90e2;
             color: white;
-            font-size: 1.2em;
-            padding: 10px;
+            font-size: 1em;
+            padding: 12px 24px;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: background 0.3s ease;
         }
 
         button:hover {
@@ -58,15 +80,16 @@
         }
 
         #loading {
+            text-align: center;
             font-weight: bold;
             color: #e67e22;
-            margin-top: 10px;
+            margin-top: 15px;
             display: none;
         }
 
         #results {
             display: none;
-            margin-top: 20px;
+            margin-top: 30px;
         }
 
         .result-grid {
@@ -80,141 +103,132 @@
         .result-image {
             width: 100%;
             max-width: 800px;
-            height: auto;
-            max-height: 500px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             object-fit: contain;
-            background: #f8f8f8;
         }
 
         @media (max-width: 600px) {
-            .result-grid {
-                gap: 15px;
-            }
             .result-image {
-                border-radius: 6px;
                 max-height: 300px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h1>Village Simulation</h1>
-        <form id="simulationForm">
+<div id="container">
+    <h1>Village Simulation</h1>
+    <form id="simulationForm">
+        <div>
             <label for="year">Years to Simulate:</label>
             <input type="number" id="year" name="year" required>
+        </div>
 
+        <div>
             <label for="num_house">Number of Households:</label>
             <input type="number" id="num_house" name="num_house" required>
+            <div class="note">Must be ≤ Land Cells. Auto-adjusted if not.</div>
+        </div>
 
+        <div>
             <label for="land_cells">Land Cells:</label>
             <input type="number" id="land_cells" name="land_cells" required>
+        </div>
 
-            <label for="prod_multiplier">Production Multiplier:</label>
-            <input type="number" step="0.1" id="prod_multiplier" name="prod_multiplier" required>
+        <div>
+            <label for="land_recovery_rate">Land Recovery Rate:</label>
+            <input type="number" step="0.01" id="land_recovery_rate" name="land_recovery_rate" required>
+            <div class="note">Reference value: 0.01 - 0.1.</div>
+        </div>
 
-            <label for="fishing_discount">Fishing Discount:</label>
-            <input type="number" step="0.1" id="fishing_discount" name="fishing_discount" required>
-
-            <label for="land_ecovery_rate">Land Recovery Rate:</label>
-            <input type="number" step="0.01" id="land_ecovery_rate" name="land_ecovery_rate" required>
-
+        <div>
             <label for="food_expiration_steps">Food Expiration Steps:</label>
             <input type="number" id="food_expiration_steps" name="food_expiration_steps" required>
+            <div class="note">Reference value: 0 - "Years to Simulate".</div>
+        </div>
 
-            <label for="spare_food_enabled">Spare Food Enabled:</label>
-            <input type="checkbox" id="spare_food_enabled" name="spare_food_enabled">
+        <div>
+            <label><input type="checkbox" id="spare_food_enabled"> Spare Food Enabled</label>
+            <label><input type="checkbox" id="fallow_farming"> Fallow Farming</label>
+            <label><input type="checkbox" id="emigrate_enabled"> Emigration Enabled</label>
+            <label><input type="checkbox" id="trading_enabled"> Trading Enabled</label>
+        </div>
 
-            <label for="fallow_farming">Fallow Farming:</label>
-            <input type="checkbox" id="fallow_farming" name="fallow_farming">
-
-            <label for="emigrate_enabled">Emigration Enabled:</label>
-            <input type="checkbox" id="emigrate_enabled" name="emigrate_enabled">
-
+        <div class="button-group">
             <button type="button" id="runButton">Run Simulation</button>
             <button type="button" id="clearButton">Clear</button>
-        </form>
+        </div>
+    </form>
 
-        <div id="loading">Running...</div>
+    <div id="loading">Running...</div>
 
-        <div id="results">
-            <h2>Simulation Results</h2>
-            <div class="result-grid">
-                <img id="simulationGif" class="result-image" src="" alt="Simulation Animation">
-                <img id="simulationImage" class="result-image" src="" alt="Simulation Results">
-                <img id="giniImage" class="result-image" src="" alt="Gini Coefficient Over Time">
-            </div>
+    <div id="results">
+        <h2>Simulation Results</h2>
+        <div class="result-grid">
+            <img id="simulationGif" class="result-image" src="" alt="Simulation Animation">
+            <img id="simulationImage" class="result-image" src="" alt="Simulation Results">
+            <img id="giniImage" class="result-image" src="" alt="Gini Coefficient Over Time">
         </div>
     </div>
+</div>
 
-    <script>
-        $(document).ready(function () {
-            $("#runButton").click(function () {
-                // Clear previous results
-                $("#simulationImage").attr("src", "");
-                $("#simulationGif").attr("src", "");
-                $("#giniImage").attr("src", "");
-                $("#results").hide();
-                $("#loading").show();
+<script>
+    $(document).ready(function () {
+        $("#land_cells, #num_house").on("input", function () {
+            const land = parseInt($("#land_cells").val(), 10);
+            const houses = parseInt($("#num_house").val(), 10);
+            if (!isNaN(land) && !isNaN(houses) && houses > land) {
+                $("#num_house").val(land);
+            }
+        });
 
-                const data = {
-                    year: $("#year").val(),
-                    num_house: $("#num_house").val(),
-                    land_cells: $("#land_cells").val(),
-                    prod_multiplier: $("#prod_multiplier").val(),
-                    fishing_discount: $("#fishing_discount").val(),
-                    land_ecovery_rate: $("#land_ecovery_rate").val(),
-                    food_expiration_steps: $("#food_expiration_steps").val(),
-                    spare_food_enabled: $("#spare_food_enabled").is(":checked") ? "true" : "false",
-                    fallow_farming: $("#fallow_farming").is(":checked") ? "true" : "false",
-                    emigrate_enabled: $("#emigrate_enabled").is(":checked") ? "true" : "false"
-                };
+        $("#runButton").click(function () {
+            $("#simulationImage, #simulationGif, #giniImage").attr("src", "");
+            $("#results").hide();
+            $("#loading").show();
 
-                $.ajax({
-                    url: "/run_simulation",
-                    type: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify(data),
-                    success: function (response) {
-                        if (response.status === "success") {
-                            const timestamp = "?t=" + new Date().getTime();
-                            
-                            // Load images with cache buster
-                            $("#simulationImage").attr("src", response.results.image_url + timestamp);
-                            $("#simulationGif").attr("src", response.results.animation_url + timestamp);
-                            $("#giniImage").attr("src", response.results.gini_url + timestamp);
-                            
-                            // Force reload if cached
-                            $("#simulationImage")[0].src = $("#simulationImage")[0].src;
-                            $("#simulationGif")[0].src = $("#simulationGif")[0].src;
-                            $("#giniImage")[0].src = $("#giniImage")[0].src;
-                            
-                            $("#loading").hide();
-                            $("#results").show();
-                        } else {
-                            console.error("Simulation error:", response.error);
-                            $("#loading").hide();
-                            alert("Simulation failed: " + (response.error || "Unknown error"));
-                        }
-                    },
-                    error: function (error) {
-                        console.error("Error running simulation:", error);
-                        $("#loading").hide();
-                        alert("Failed to run simulation.");
+            const data = {
+                year: $("#year").val(),
+                num_house: $("#num_house").val(),
+                land_cells: $("#land_cells").val(),
+                land_recovery_rate: $("#land_recovery_rate").val(),
+                food_expiration_steps: $("#food_expiration_steps").val(),
+                spare_food_enabled: $("#spare_food_enabled").is(":checked") ? "true" : "false",
+                fallow_farming: $("#fallow_farming").is(":checked") ? "true" : "false",
+                emigrate_enabled: $("#emigrate_enabled").is(":checked") ? "true" : "false",
+                trading_enabled: $("#trading_enabled").is(":checked") ? "true" : "false"
+            };
+
+            $.ajax({
+                url: "/run_simulation",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    if (response.status === "success") {
+                        const timestamp = "?t=" + new Date().getTime();
+                        $("#simulationImage").attr("src", response.results.image_url + timestamp);
+                        $("#simulationGif").attr("src", response.results.animation_url + timestamp);
+                        $("#giniImage").attr("src", response.results.gini_url + timestamp);
+                        $("#results").show();
+                    } else {
+                        alert("Simulation failed: " + (response.error || "Unknown error"));
                     }
-                });
-            });
-            
-            $("#clearButton").click(function () {
-                $("#simulationImage").attr("src", "");
-                $("#simulationGif").attr("src", "");
-                $("#giniImage").attr("src", "");
-                $("#results").hide();
-                $("#loading").hide();
+                    $("#loading").hide();
+                },
+                error: function () {
+                    $("#loading").hide();
+                    alert("Simulation failed. Please check error log.");
+                }
             });
         });
-    </script>
+
+        $("#clearButton").click(function () {
+            $("#simulationImage, #simulationGif, #giniImage").attr("src", "");
+            $("#results").hide();
+            $("#loading").hide();
+        });
+    });
+</script>
 </body>
 </html>

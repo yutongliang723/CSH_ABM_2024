@@ -51,7 +51,7 @@ def initialize_village(params):
     num_land_cells=params["land_cells"], 
     vec1_instance=vec1_instance, 
     food_expiration_steps=params["food_expiration_steps"],
-    land_ecovery_rate=params["land_ecovery_rate"], 
+    land_recovery_rate=params["land_recovery_rate"], 
     land_max_capacity=params["land_max_capacity"],
     initial_quality=params["initial_quality"], 
     # fish_chance=params["fish_chance"], 
@@ -69,7 +69,6 @@ def run_simulation(village, vec1_instance, params):
             vec1_instance = vec1_instance, 
             prod_multiplier=params["prod_multiplier"], 
             fishing_discount=params["fishing_discount"], 
-            fallow_ratio=params["fallow_ratio"], 
             fallow_period=params["fallow_period"], 
             food_expiration_steps=params["food_expiration_steps"], 
             marriage_from=params["marriage_from"], 
@@ -103,7 +102,7 @@ def save_results(village, file_name, file_name_second, file_name_csv, vec1_insta
 
 def main():
 
-    random.seed(10)
+    # random.seed(10)
     demog_scale()
     params = load_parameters()
     _, file_name, _, file_name_csv, file_name_second = setup_simulation_parameters(params)

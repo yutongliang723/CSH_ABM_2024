@@ -12,6 +12,8 @@ from agent import Agent
 import statistics
 import scipy.special as sp
 import scipy.linalg as sl
+import warnings
+warnings.filterwarnings("ignore")
 
 # from utils import reduce_food_from_house
 
@@ -99,7 +101,7 @@ class Village:
                     else:
                         merged_conn[id_key] = value  
             household = self.get_household_by_id(key)
-            result[key] = {'connectivity': merged_conn, 'num_member': len(household.members)}
+            result[key] = {'connectivity': merged_conn, 'num_member': len(household.members), 'wealth': household.get_wealth(10)} # theoratically should change as a var but takes too long, 10 for now
 
         return result
 
@@ -390,7 +392,7 @@ class Village:
             # total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_ratio, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
         
         """Run a single simulation step (year)."""
         
@@ -516,10 +518,36 @@ class Village:
             self.manage_luxury_goods(exchange_rate, excess_food_ratio, vec1_instance)
             self.trading(excess_food_ratio, trade_back_start, exchange_rate, vec1_instance)
         if fallow_farming:
-            self.update_fallow_land(fallow_ratio, fallow_period, storage_ratio_low, farming_counter_max)
+            self.update_fallow_land(fallow_period, storage_ratio_low, farming_counter_max)
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += lux_per_year 
+        # if self.time == 1 or self.time == 501 or self.time == 1000:
+        #     print("Year", self.time)
+        #     print(self.network_relation)
+
+        #     data = {
+        #     "Year": self.time,
+        #     "network_relation": self.network_relation
+        # }
+        
+        # import json
+        # with open(f"network_relations{self.time}.json", "a") as f:
+        #     json.dump(data, f)
+        #     f.write("\n") 
+        import json
+        if self.time in [1, 501, 1000]:
+            filename = f"network_year_{self.time}.json"
+            with open(filename, "w") as f:
+                json.dump({
+                    "Year": self.time,
+                    "network_relation": self.combined_network()
+                }, f, indent=2)
+            print(f"Wrote {filename}")
+        if self.time == 1:
+            print("combined_network", self.combined_network())
+            
+            
         
     
     def update_land_capacity(self, land_depreciate_factor):
@@ -700,7 +728,7 @@ class Village:
         plt.ylabel('Failure Frequency', size = 20)
         plt.yticks(size = 20)
         plt.title('Marriage Proposal Failures Over Time', size = 20)
-        plt.legend(fontsize=15)
+        # plt.legend(fontsize=15)
 
         plt.subplot(2, 3, 2)
         emigrate_counts = [self.emigrate[t] for t in time_steps]
@@ -709,7 +737,7 @@ class Village:
         plt.ylabel('Failure Frequency', size = 20)
         plt.yticks(size = 20)
         plt.title('Emigrants Over Time', size = 20)
-        plt.legend(fontsize=15)
+        # plt.legend(fontsize=15)
 
         plt.subplot(2, 3, 3)
         male_counts = [self.male[t] for t in time_steps]
@@ -720,7 +748,7 @@ class Village:
         plt.ylabel('Count', size = 20)
         plt.yticks(size = 20)
         plt.title('Gender Distribution Over Time', size = 20)
-        plt.legend(fontsize=15)
+        # plt.legend(fontsize=15)
 
         new_born_all = [self.new_born[t] for t in time_steps]
         plt.subplot(2, 3, 4)
@@ -729,7 +757,7 @@ class Village:
         plt.ylabel('Count', size = 20)
         plt.yticks(size = 20)
         plt.title('New Born Over Time', size = 20)
-        plt.legend(fontsize=15)
+        # plt.legend(fontsize=15)
 
         plt.subplot(2, 3, 5)
 
@@ -955,6 +983,7 @@ class Village:
     def calculate_wealth(self, exchange_rate):
         wealths = [household.get_wealth(exchange_rate) for household in self.households if household in self.households]
         return wealths
+    
 
     def calculate_food(self):
         food = [household.get_total_food() for household in self.households if household in self.households]
@@ -1015,7 +1044,7 @@ class Village:
                 break
 
 
-    def update_fallow_land(self, fallow_ratio, fallow_period, storage_ratio_low,farming_counter_max):
+    def update_fallow_land(self, fallow_period, storage_ratio_low,farming_counter_max):
             """Update land plots every year to manage the fallow cycle."""
             if self.time < fallow_period:
                 return

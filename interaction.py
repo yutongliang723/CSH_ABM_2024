@@ -34,9 +34,9 @@ def serve_results(filename):
 def run_simulation():
     data = request.json
     required_params = [
-        "num_house", "year", "land_cells", "prod_multiplier",
+        "num_house", "year", "land_cells",
         "spare_food_enabled", "fallow_farming", "emigrate_enabled",
-        "land_ecovery_rate", "food_expiration_steps", "fishing_discount"
+        "land_recovery_rate", "food_expiration_steps", "trading_enabled"
     ]
 
     for param in required_params:
@@ -48,41 +48,39 @@ def run_simulation():
             "num_house": int(data["num_house"]),
             "year": int(data["year"]),
             "land_cells": int(data["land_cells"]),
-            "prod_multiplier": float(data["prod_multiplier"]),
-            "fishing_discount": float(data["fishing_discount"]),
+            "prod_multiplier": 1.0,  # Default since removed from UI
+            "fishing_discount": 0.0,  # Default since removed from UI
             "spare_food_enabled": data["spare_food_enabled"] == "true",
             "fallow_farming": data["fallow_farming"] == "true",
             "emigrate_enabled": data["emigrate_enabled"] == "true",
-            "land_ecovery_rate": float(data["land_ecovery_rate"]),
+            "trading_enabled": data["trading_enabled"] == "true",
+            "land_recovery_rate": float(data["land_recovery_rate"]),
             "food_expiration_steps": int(data["food_expiration_steps"]),
 
-            # Default values
-            "fallow_ratio": 50,
+            # Constants / Defaults
             "fallow_period": 2,
-            "marriage_from": 5,
-            "marriage_to": 55,
+            "marriage_from": 14,
+            "marriage_to": 60,
             "bride_price_ratio": 0.4,
-            "bride_price": 2,
+            "bride_price": 1,
             "land_max_capacity": 20,
             "initial_quality": 5,
-            # "fish_chance": 0.3,
             "exchange_rate": 3,
-            "luxury_good_storage": 50,
+            "luxury_good_storage": 0,
             "storage_ratio_low": 0.2,
             "storage_ratio_high": 1.5,
             "land_capacity_low": 1,
             "max_member": 20,
             "excess_food_ratio": 1.5,
             "trade_back_start": 20,
-            "lux_per_year": 1,
+            "lux_per_year": 15,
             "land_depreciate_factor": 0.01,
             "fertility_scaler": 2,
-            "work_scale": 50,
-            "luxury_goods_in_village": 50,
+            "work_scale": 5,
+            "luxury_goods_in_village": 0,
             "demog_file": "demog_vectors_scaled.csv",
             "prob_emigrate": 0.2,
             "farming_counter_max": 10,
-            "trading_enabled": True,
             "conditions": {
                 "use_fertility": True,
                 "check_gender": True,
@@ -94,6 +92,7 @@ def run_simulation():
 
     except (ValueError, TypeError) as e:
         return jsonify({"error": f"Invalid parameter: {e}"}), 400
+
 
     # Generate unique timestamp for this run
     timestamp = str(int(time.time()))
@@ -121,7 +120,7 @@ def run_simulation():
         num_land_cells=params["land_cells"],
         vec1_instance=vec1_instance,
         food_expiration_steps=params["food_expiration_steps"],
-        land_ecovery_rate=params["land_ecovery_rate"],
+        land_recovery_rate=params["land_recovery_rate"],
         land_max_capacity=params["land_max_capacity"],
         initial_quality=params["initial_quality"],
         # fish_chance=params["fish_chance"],
@@ -137,7 +136,7 @@ def run_simulation():
             vec1_instance=vec1_instance,
             prod_multiplier=params["prod_multiplier"],
             fishing_discount=params["fishing_discount"],
-            fallow_ratio=params["fallow_ratio"],
+            # fallow_ratio=params["fallow_ratio"],
             fallow_period=params["fallow_period"],
             food_expiration_steps=params["food_expiration_steps"],
             marriage_from=params["marriage_from"],

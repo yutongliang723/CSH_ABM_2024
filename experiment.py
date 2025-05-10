@@ -11,6 +11,8 @@ from agent import *
 from vec import *
 from demog_scale import *
 import utils
+import warnings
+warnings.filterwarnings("ignore")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -78,7 +80,6 @@ def run_experiment(experiment_id, params, param_values, condition_values):
             vec1_instance = vec1_instance, 
             prod_multiplier=params["prod_multiplier"], 
             fishing_discount=params["fishing_discount"], 
-            fallow_ratio=params["fallow_ratio"], 
             fallow_period=params["fallow_period"], 
             food_expiration_steps=params["food_expiration_steps"], 
             marriage_from=params["marriage_from"], 

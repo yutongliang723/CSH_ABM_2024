@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import json
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def load_parameters(file_path):
     with open(file_path, "r") as f:

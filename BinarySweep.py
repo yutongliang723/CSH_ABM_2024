@@ -11,6 +11,8 @@ from agent import *
 from vec import *
 from demog_scale import *
 import utils
+import warnings
+warnings.filterwarnings("ignore")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -27,20 +29,7 @@ def load_experiment_parameters(file_path="params_exp_short.json"):
         logging.error(f"Error loading parameters: {e}")
         sys.exit(1)
 
-# def get_param_combinations(params):
-#     param_keys = [k for k in params.keys() if k != "conditions"]
-#     condition_keys = list(params["conditions"].keys())
-    
-#     param_values = [params[k] if isinstance(params[k], list) else [params[k]] for k in param_keys]
-#     condition_values = [params["conditions"][k] if isinstance(params["conditions"][k], list) else [params["conditions"][k]] for k in condition_keys]
-    
-#     param_combinations = list(itertools.product(*param_values))
-#     condition_combinations = list(itertools.product(*condition_values))
-    
-#     all_combinations = list(itertools.product(param_combinations, condition_combinations))
-#     return param_keys, condition_keys, all_combinations
-
-def get_param_combinations(params):
+def get_param_combinations2(params):
     import copy
 
     param_keys = [k for k in params if k != "conditions"]
@@ -49,7 +38,7 @@ def get_param_combinations(params):
     all_experiments = []
 
     # Get base (first) values
-    base_param_values = [params[k][0] if isinstance(params[k], list) else params[k] for k in param_keys]
+    base_param_values = [params[k][1] if isinstance(params[k], list) and len(params[k]) > 1 else params[k][0] for k in param_keys]
     base_condition_values = [params["conditions"][k][0] if isinstance(params["conditions"][k], list) else params["conditions"][k] for k in condition_keys]
 
     def replace_and_tuple(base_list, index, new_value):
@@ -82,6 +71,19 @@ def get_param_combinations(params):
 
     return param_keys, condition_keys, all_experiments
 
+def get_param_combinations(params):
+    param_keys = [k for k in params.keys() if k != "conditions"]
+    condition_keys = list(params["conditions"].keys())
+    
+    param_values = [params[k] if isinstance(params[k], list) and len(params[k]) > 1 else [params[k][0]] for k in param_keys]
+    condition_values = [params["conditions"][k] if isinstance(params["conditions"][k], list) else [params["conditions"][k]] for k in condition_keys]
+    
+    param_combinations = list(itertools.product(*param_values))
+    condition_combinations = list(itertools.product(*condition_values))
+    
+    all_combinations = list(itertools.product(param_combinations, condition_combinations))
+    return param_keys, condition_keys, all_combinations
+
 def make_clickable_image(relative_path):
     """Creates an HTML clickable image link for local files."""
     abs_path = os.path.abspath(relative_path)
@@ -104,7 +106,7 @@ def run_experiment(experiment_id, params, param_values, condition_values):
         num_land_cells=params["land_cells"],
         vec1_instance=vec1_instance,
         food_expiration_steps=params["food_expiration_steps"],
-        land_ecovery_rate=params["land_ecovery_rate"],
+        land_recovery_rate=params["land_recovery_rate"],
         land_max_capacity=params["land_max_capacity"],
         initial_quality=params["initial_quality"],
         # fish_chance=params["fish_chance"],
@@ -120,7 +122,7 @@ def run_experiment(experiment_id, params, param_values, condition_values):
             vec1_instance = vec1_instance, 
             prod_multiplier=params["prod_multiplier"], 
             fishing_discount=params["fishing_discount"], 
-            fallow_ratio=params["fallow_ratio"], 
+            # fallow_ratio=params["fallow_ratio"], 
             fallow_period=params["fallow_period"], 
             food_expiration_steps=params["food_expiration_steps"], 
             marriage_from=params["marriage_from"], 
@@ -189,8 +191,8 @@ def run_experiment(experiment_id, params, param_values, condition_values):
     # Add parameters as columns
     avg_metrics.update(params)
     
-    village.plot_simulation_results(img_path_1, csv_path, vec1_instance)
-    village.plot_simulation_results_second(img_path_2)
+    # village.plot_simulation_results(img_path_1, csv_path, vec1_instance)
+    # village.plot_simulation_results_second(img_path_2)
     
     return avg_metrics
 
@@ -217,3 +219,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+# if __name__ == "__main__":
+#     for i in range(1, 31):
+#         RESULTS_FOLDER = f"bride_price_ratio/result_{i:03d}"
+#         os.makedirs(RESULTS_FOLDER, exist_ok=True)
+#         logging.info(f"Starting batch run {i}/30 in folder: {RESULTS_FOLDER}")
+#         main()

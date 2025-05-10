@@ -6,8 +6,10 @@ from vec import Vec1
 import scipy.special as sp
 import math
 import uuid
+import warnings
+warnings.filterwarnings("ignore")
 
-random.seed(10)
+# random.seed(10)
 def generate_random_agent(household_id, vec1_instance):
 
     """Generate a random agent with basic attributes."""
@@ -27,7 +29,7 @@ def generate_random_household(num_members, location, vec1_instance, food_expirat
     
     return new_household
 
-def generate_random_village(num_households, num_land_cells, vec1_instance, food_expiration_steps, land_ecovery_rate, land_max_capacity, initial_quality, fallow_period, luxury_goods_in_village):
+def generate_random_village(num_households, num_land_cells, vec1_instance, food_expiration_steps, land_recovery_rate, land_max_capacity, initial_quality, fallow_period, luxury_goods_in_village):
     """Generate a village with a specified number of households and land cells."""
     grid_size = math.ceil(math.sqrt(num_land_cells))
     land_types = {}
@@ -37,7 +39,7 @@ def generate_random_village(num_households, num_land_cells, vec1_instance, food_
             'quality': initial_quality,
             'occupied': False,
             'max_capacity': land_max_capacity,
-            'recovery_rate': land_ecovery_rate,
+            'recovery_rate': land_recovery_rate,
             'fallow': False,      
             'fallow_timer': 0,
             # 'fishing': random.random() < fish_chance  # 30% chance of being True
