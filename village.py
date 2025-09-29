@@ -14,6 +14,7 @@ import scipy.special as sp
 import scipy.linalg as sl
 import warnings
 warnings.filterwarnings("ignore")
+import matplotlib.pyplot as plt
 
 # from utils import reduce_food_from_house
 
@@ -101,6 +102,9 @@ class Village:
                     else:
                         merged_conn[id_key] = value  
             household = self.get_household_by_id(key)
+            self.network_relation[key]['wealth'] = household.get_wealth(10)
+            self.network_relation[key]['num_member'] = len(household.members)
+            # print(self.network_relation)
             result[key] = {'connectivity': merged_conn, 'num_member': len(household.members), 'wealth': household.get_wealth(10)} # theoratically should change as a var but takes too long, 10 for now
 
         return result
@@ -522,30 +526,19 @@ class Village:
         self.update_network_connectivity()
         self.time += 1
         self.luxury_goods_in_village += lux_per_year 
-        # if self.time == 1 or self.time == 501 or self.time == 1000:
-        #     print("Year", self.time)
-        #     print(self.network_relation)
-
-        #     data = {
-        #     "Year": self.time,
-        #     "network_relation": self.network_relation
-        # }
-        
         # import json
-        # with open(f"network_relations{self.time}.json", "a") as f:
-        #     json.dump(data, f)
-        #     f.write("\n") 
-        import json
-        if self.time in [1, 501, 1000]:
-            filename = f"network_year_{self.time}.json"
-            with open(filename, "w") as f:
-                json.dump({
-                    "Year": self.time,
-                    "network_relation": self.combined_network()
-                }, f, indent=2)
-            print(f"Wrote {filename}")
-        if self.time == 1:
-            print("combined_network", self.combined_network())
+        # if self.time in [1, 501, 1000]:
+        #     filename = f"network_year_{self.time}.json"
+        #     with open(filename, "w") as f:
+        #         json.dump({
+        #             "Year": self.time,
+        #             # "network_relation":self.network_relation,
+        #             "network_relation":self.combined_network()
+                    
+        #         }, f, indent=2)
+        #     print(f"Wrote {filename}")
+        # if self.time == 1:
+        #     print("combined_network", self.combined_network())
             
             
         
@@ -717,29 +710,34 @@ class Village:
             eigvals, eigvecs = sl.eig(m1)  # sompute eigenvalues and eigenvectors
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(round(lambda_max, 2))
-
+    import matplotlib
+    matplotlib.rcParams.update({'text.usetex': False,
+                            'text.latex.preamble': r"\usepackage{amsmath}\usepackage{siunitx}\usepackage{textcomp}\usepackage{gensymb}"})
+    matplotlib.rcParams.update({'font.size': 18, 'font.style': 'normal', 'font.family':'serif'})
     def plot_simulation_results_second(self, file_name_second):
-        plt.figure(figsize=(18, 12))
-        plt.subplot(2, 3, 1)
-        time_steps = list(range(self.time))
-        failure_counts = [self.failure_marry[t] for t in time_steps]
-        plt.plot(time_steps, failure_counts, marker='o')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Failure Frequency', size = 20)
-        plt.yticks(size = 20)
-        plt.title('Marriage Proposal Failures Over Time', size = 20)
-        # plt.legend(fontsize=15)
+        
+        plt.figure(figsize=(18, 4))
 
-        plt.subplot(2, 3, 2)
+        # plt.subplot(2, 3, 1)
+        time_steps = list(range(self.time))
+        # failure_counts = [self.failure_marry[t] for t in time_steps]
+        # plt.plot(time_steps, failure_counts, marker='o')
+        # plt.xlabel('Time Step', size = 20)
+        # plt.ylabel('Failure Frequency', size = 20)
+        # plt.yticks(size = 20)
+        # plt.title('Marriage Proposal Failures Over Time', size = 20)
+        # # plt.legend(fontsize=15)
+
+        plt.subplot(1, 3, 1)
         emigrate_counts = [self.emigrate[t] for t in time_steps]
         plt.plot(time_steps, emigrate_counts, marker='o')
         plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Failure Frequency', size = 20)
+        plt.ylabel('Emigrants', size = 20)
         plt.yticks(size = 20)
         plt.title('Emigrants Over Time', size = 20)
         # plt.legend(fontsize=15)
 
-        plt.subplot(2, 3, 3)
+        plt.subplot(1, 3, 2)
         male_counts = [self.male[t] for t in time_steps]
         female_counts = [self.female[t] for t in time_steps]
         plt.plot(time_steps, male_counts, color = 'blue', label='Male')
@@ -748,10 +746,10 @@ class Village:
         plt.ylabel('Count', size = 20)
         plt.yticks(size = 20)
         plt.title('Gender Distribution Over Time', size = 20)
-        # plt.legend(fontsize=15)
+        plt.legend(fontsize=15)
 
         new_born_all = [self.new_born[t] for t in time_steps]
-        plt.subplot(2, 3, 4)
+        plt.subplot(1, 3, 3)
         plt.plot(time_steps,new_born_all)
         plt.xlabel('Time Step', size = 20)
         plt.ylabel('Count', size = 20)
@@ -759,24 +757,25 @@ class Village:
         plt.title('New Born Over Time', size = 20)
         # plt.legend(fontsize=15)
 
-        plt.subplot(2, 3, 5)
+        # plt.subplot(2, 3, 5)
 
-        time_steps = range(self.time)
-        reasons = ["fertility", "gender", "marriage", "land", "household"]
+        # time_steps = range(self.time)
+        # reasons = ["fertility", "gender", "marriage", "land", "household"]
 
-        data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
+        # data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
 
-        for reason in reasons:
-            plt.plot(time_steps, data[reason], label=reason)
+        # for reason in reasons:
+        #     plt.plot(time_steps, data[reason], label=reason)
 
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Failure Frequency', size = 20)
-        plt.yticks(size = 20)
-        plt.title('Failed Reproduction Reasons Over Time', size = 20)
-        plt.legend(fontsize=15)
+        # plt.xlabel('Time Step', size = 20)
+        # plt.ylabel('Failure Frequency', size = 20)
+        # plt.yticks(size = 20)
+        # plt.title('Failed Reproduction Reasons Over Time', size = 20)
+        # plt.legend(fontsize=15)
 
         plt.tight_layout()
-        plt.savefig(file_name_second)
+        plt.savefig(file_name_second, format='svg')
+
         # plt.show()
         # plt.close()
 
@@ -793,7 +792,7 @@ class Village:
         plt.ylabel('Population', size = 20)
         # plt.xticks(size = 20)
         plt.yticks(size = 20)
-        plt.legend()
+        # plt.legend()
         plt.title('Population Over Time',size = 20)
 
         # Plot 2: Land Capacity over time
@@ -814,7 +813,7 @@ class Village:
         plt.ylabel('Food Storage', size = 20)
         # plt.xticks(size = 20)
         plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
+        # plt.legend(fontsize = 15)
         plt.title('Food Storage Over Time', size = 20)
 
         plt.subplot(3, 3, 4)
@@ -844,7 +843,7 @@ class Village:
         plt.ylabel('Average Age', size = 20)
         # plt.xticks(size = 20)
         plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
+        # plt.legend(fontsize = 15)
         plt.title('Average Age Over Time', size = 20)
 
         # Plot 6: Average Life Span over time
@@ -854,7 +853,7 @@ class Village:
         plt.ylabel('Average Life Span', size = 20)
         # plt.xticks(size = 20)
         plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
+        # plt.legend(fontsize = 15)
         plt.title('Average Life Span Over Time', size = 20)
 
         plt.subplot(3, 3, 8)
@@ -862,7 +861,7 @@ class Village:
         plt.xlabel('Time Step', size=20)
         plt.ylabel('Accumulated Population', size=20)
         plt.yticks(size=20)
-        plt.legend(fontsize = 15)
+        # plt.legend(fontsize = 15)
         plt.title('Accumulated Population', size=20)
 
         plt.subplot(3, 3, 9)
@@ -878,7 +877,7 @@ class Village:
 
 
         plt.tight_layout()
-        plt.savefig(file_name)
+        plt.savefig(file_name, format='svg')
         # plt.show()
         # plt.close()
 

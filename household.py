@@ -11,6 +11,7 @@ class Household:
         # print('New household: {}'.format(self.id))
         self.members = members
         self.location = location  
+        # 
         self.food_storage = []
         self.food_storage_timestamps = []
         self.luxury_good_storage = luxury_good_storage
