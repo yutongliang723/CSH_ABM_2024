@@ -1,25 +1,34 @@
 import random
 from agent import Agent
 import itertools
-# from main import idh_count
+from collections import defaultdict
 
+# from main import idh_count
+# import utils
 
 class Household:
     _id_iter = itertools.count(start = 1)
-    def __init__(self, members, location, food_storage, luxury_good_storage,food_expiration_steps):
+    def __init__(self, members, location, home, farmlands, food_storage, luxury_good_storage,food_expiration_steps):
         self.id = next(Household._id_iter)
-        # print('New household: {}'.format(self.id))
         self.members = members
-        self.location = location  
-        # 
+        self.location = location  # home location
+        self.home = home
         self.food_storage = []
         self.food_storage_timestamps = []
         self.luxury_good_storage = luxury_good_storage
         self.current_step = 0
         self.food_expiration_steps = food_expiration_steps
-        
-        
-    
+        self.farmlands = []
+        self.prestige = 0
+        self.resources = {"stone":0,
+                          "obsidian": 0,
+                          "jade":0}
+        self.farmers = []
+        self.tech_labors = []
+        self.productivity = 0
+        self.parents = []
+        self.spouses = []
+
     def clean_up(self):
         self.members.clear()  
         self.location = None
@@ -27,7 +36,6 @@ class Household:
     def add_food(self, amount):
         """Add food with the current step count."""
         self.food_storage.append((amount, self.current_step))
-        # print(f"Added {amount:.2f} units of food to Household {self.id}.")
     
     def update_food_storage(self):
         """Remove expired food from storage based on the current step."""
@@ -49,52 +57,71 @@ class Household:
         self.current_step += 1
 
     def get_land_quality(self, village):
-        return village.land_types[self.location]['quality']
-
-    def get_land_max_capacity(self, village):
-        return village.land_types[self.location].get('max_capacity', 1.0)
+        return village.land_by_id[self.location].soil
     
 
-    def produce_food(self, village, vec1, prod_multiplier, fishing_discount, work_scale):
-        """Simulate food production based on land quality and the work done by household members."""
-        land_data = village.land_types[self.location]
-        if land_data['fallow']:
-            production_amount = 0
-            for member in self.members:
-                # if member.is_alive:
-                if 1 == 1:
-                    work_output = member.work(vec1, work_scale) 
-            
-                    production_amount += work_output * fishing_discount
-            # print(f"Household {self.id} cannot farm land plot {self.location} because it is fallow.")
-        
-        else:
-            land_quality = village.land_types[self.location]['quality']
-            production_amount = 0
-            total_work_output = 0
-            for member in self.members:
-                total_work_output += member.work(vec1, work_scale)
+    def get_land_max_capacity(self, village):
+        return village.land_by_id[self.id].max_capacity
+    
 
-            scaled_work_output = total_work_output / (total_work_output + village.land_types[self.location]['max_capacity'])
-            production_amount = scaled_work_output * land_quality * prod_multiplier
-            village.land_types[self.location]['farming_intensity'] = scaled_work_output
-            village.land_types[self.location]['farming_counter'] += 1
-            # print(f"Household {self.id} produced {production_amount} units of food. Land quality: {land_quality}")
-        self.add_food(production_amount)
+    def produce_food(self, village, vec1, prod_multiplier, fishing_discount, work_scale, climate, total_food_needed_standard):
+        
+        village.farms_by_owner = defaultdict(list)
+        for land in village.land_by_id.values():   # or village.lands
+            if land.occupied == "farm" and land.owner == self.id:
+                village.farms_by_owner[land.owner].append(land)
+        farm_cells = village.farms_by_owner[self.id] 
+
+        if not farm_cells:
+            return  # no farm lands for this household
+        self.farmers = []
+        self.tech_labors = []
+        labor_accum = 0
+        for agent in sorted(self.members, key=lambda x: x.productivity, reverse=True):
+            if labor_accum < total_food_needed_standard:
+                self.farmers.append(agent)
+                labor_accum += agent.work(vec1, work_scale)
+            else:
+                self.tech_labors.append(agent)
+
+        total_work_output = sum(member.work(vec1, work_scale) for member in self.farmers)
+        total_work_output += sum(agent.work(vec1, work_scale) for agent in self.tech_labors) # remaining labor from tech
+        total_production = 0.0
+        total_land_quality = []
+        for cell in farm_cells:
+            if getattr(cell, "fallow", False):
+                production = total_work_output * fishing_discount
+                land_quality = 0 # should this be 0 or its original quality?
+            else:
+                land_quality = cell.soil
+                max_cap = cell.max_capacity or 1
+
+                scaled_work_output = total_work_output / (total_work_output + max_cap)
+                production = scaled_work_output * land_quality * prod_multiplier
+
+                # update land attributes
+                cell.farming_intensity = scaled_work_output
+                cell.farming_counter = getattr(cell, "farming_counter", 0) + 1
+
+            total_production += production
+            total_land_quality.append(land_quality)
+
+        self.add_food(total_production*climate)
         self.update_food_storage()
+        tool_multiplier = 1.0 # need to recount per year
+        if self.resources['stone'] > 0:      tool_multiplier += 0.1
+        if self.resources['obsidian'] > 0:   tool_multiplier += 0.3
+        productivity = total_work_output * tool_multiplier * (sum(total_land_quality)/len(farm_cells))
+        self.productivity = productivity
+
         
     
     def remove_food(self, amount):
-        """
-        Remove the given amount of food from this household.
-        Does not keep track of the expiry of the removed food.
-        Returns the actual amount of food removed (can be less than amount, if storage is too low).
-        """
-        # print(self.food_storage)
+       
         for i in range(len(self.food_storage)):
             removed = 0
             if self.food_storage[i][0] > amount:
-                # note: tuples are immutable, so we cannot do self.food_storage[i][0] -= amount
+                
                 self.food_storage[i] = (self.food_storage[i][0] - amount, self.food_storage[i][1])
                 removed += amount
                 break
@@ -104,19 +131,6 @@ class Household:
                 self.food_storage[i] = (0, 0)
         self.food_storage = list((x, y) for x, y in self.food_storage if x > 0)
         return removed
-
-    # def consume_food(self, total_food_needed, village):
-    #     """Simulate food consumption by household members."""
-    #     # total_food_needed = sum(member.vec1.rho[member.get_age_group_index()] for member in self.members)
-    #     self.food_storage.sort(key=lambda x: x[1])
-    #     self.update_food_storage()
-    #     total_available_food = sum(amount for amount, _ in self.food_storage)
-    #     if not len(self.food_storage) == 0:
-
-    #         consumed = self.remove_food(total_food_needed)
-    #         # print('Household total food need: ', total_food_needed, '\n', 'Household total available food: ', total_available_food, '\nFood consumed: ', consumed)
-    #     else: 
-    #         village.remove_household(self)
 
 
     def get_distance(self, location1, location2):
@@ -136,12 +150,11 @@ class Household:
             # print(f"Member {member.household_id} in Household {self.id} died.")
             pass
     
-    def split_household(self, village, food_expiration_steps):
-        """Handle the splitting of a household when it grows too large."""
+    def split_household(self, village, food_expiration_steps): # split the household if it is too large
         
-        empty_land_cells = [loc for loc, data in village.land_types.items() if data['occupied'] == False and data['fallow'] == False]
+        empty_land_cells = [land for land in village.lands if land.occupied == None and not land.fallow]
         
-        if empty_land_cells:
+        if len(empty_land_cells) > 100:
             new_household_members_ids = set()
             random.shuffle(self.members)
             members_to_leave = len(self.members) // 2
@@ -166,7 +179,6 @@ class Household:
                     self.remove_member(member)
 
                 new_household_members_ids.remove(member.id)
-            
                         
             if len(new_household_members_ids) > 0:
                 raise BaseException('Agent to split not in household {}!'.format(self.id))
@@ -182,15 +194,36 @@ class Household:
                 luxury_good_storage=new_luxury_good_storage,
                 members=new_household_members,
                 location = None,
+                home = None,
+                farmlands=None,
                 food_expiration_steps = food_expiration_steps
             )
+            new_household.parents.append(self.id) # track for kin
+            new_household.parents + self.parents
             for m in new_household.members:
                 m.household_id = new_household.id
 
-            new_location = random.choice(empty_land_cells)
-            village.land_types[new_location]['occupied'] = True
-            # village.land_types[new_location]['household_id'] = new_household.id
+            random_ch = random.choice(empty_land_cells)
+            new_location = random_ch.location
+            random_ch.owner = new_household.id
+            from utils import allocate_household_land
+            land_by_id = village.land_by_id
+            new_farmlands = allocate_household_land(
+                            home_location=new_location,
+                            num_farm_pixels=100,
+                            land_by_id=land_by_id,
+                            weights=None
+                            )
+
+            random_ch.occupied = "house"
+            for land in new_farmlands:
+                land.occupied = "farm"
+                land.owner = new_household.id
+            new_household.home = random_ch
             new_household.location = new_location
+            new_household.farmlands = new_farmlands
+            for i in new_farmlands:
+                i.owner = new_household.id
 
             village.households.append(new_household)
 
@@ -264,10 +297,57 @@ class Household:
     
     def get_wealth(self, exchange_rate):
         food = sum(amount for amount, _ in self.food_storage)
-        luxury = self.luxury_good_storage
-        return food + exchange_rate * luxury # 10
+        total_luxury = sum(self.resources[r] * exchange_rate[r] for r in self.resources)
+        luxury = total_luxury
+        return food +luxury 
 
     def get_luxury(self):
-        luxury = self.luxury_good_storage
-        return luxury
+        weights = {"stone": 0.1, "obsidian": 0.3, "jade": 1.0}
+        total_luxury = sum(self.resources[r] * weights[r] for r in self.resources)
+        # luxury = self.luxury_good_storage
+        return total_luxury
     
+    def discover_resource(self, vec1, work_scale, neighbors): # technology
+
+        if neighbors: # social diffusion
+            neighbor_resource_sum = sum(
+                (n.resources["stone"] +
+                n.resources["obsidian"] +
+                n.resources["jade"])
+                for n in neighbors
+            )
+
+            boost = 1 + min(1.0, (neighbor_resource_sum / 5) * 0.10) # chances, improve the def
+        else:
+            boost = 1.0
+
+        for patch in self.farmlands:
+            # regenerate resources each year with small probability
+            if patch.has_stone:
+                patch.has_stone = random.random() < 0.7 * boost
+            if patch.has_obsidian:
+                patch.has_obsidian = random.random() < 0.5 * boost
+            if patch.has_jade:
+                patch.has_jade = random.random() < 0.5 * boost
+            # attempt discovery
+            for resource, has_resource in [('stone', patch.has_stone),
+                                        ('obsidian', patch.has_obsidian),
+                                        ('jade', patch.has_jade)]:
+                if has_resource:
+                    labor_needed = 1  # unit of labor per resource
+                    while labor_needed > 0 and self.tech_labors:
+                        agent = self.tech_labors[0]
+                        # ensure each agent has remaining work
+                        if not hasattr(agent, "remaining_work"):
+                            agent.remaining_work = agent.work(vec1, work_scale)
+                        if agent.remaining_work >= labor_needed:
+                            agent.remaining_work -= labor_needed
+                            self.resources[resource] += 1
+                            labor_needed = 0
+                        else:
+                            labor_needed -= agent.remaining_work
+                            agent.remaining_work = 0
+                            self.tech_labors.pop(0)  # exhausted agent
+                        # increase prestige if jade discovered
+                        if resource == 'jade':
+                            self.prestige += 1  # or scale with quantity if needed

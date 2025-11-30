@@ -33,38 +33,74 @@ def setup_simulation_parameters(params):
     folder_name = f"run_results/{timestamp}"
     os.makedirs(folder_name, exist_ok=True)
 
-    file_name = f"{folder_name}/results"
-    file_name_second = f"{folder_name}/results_second"
+    file_name = f"{folder_name}/results.svg"
+    file_name_second = f"{folder_name}/results_second.svg"
     file_path = f"{folder_name}/simulation_output"
     file_name_csv = f"{folder_name}/simulation_results.csv"
 
     with open(os.path.join(folder_name, "parameters.json"), "w") as f:
         json.dump(params, f, indent=4)
-
+    print("setup_simulation_parameters")
     return folder_name, file_name, file_path, file_name_csv, file_name_second
 
-def initialize_village(params):
 
+def initialize_village(params):
     vec1_instance = Vec1(params)
     village = utils.generate_random_village(
-    num_households=params["num_house"],  
-    num_land_cells=params["land_cells"], 
-    vec1_instance=vec1_instance, 
-    food_expiration_steps=params["food_expiration_steps"],
-    land_recovery_rate=params["land_recovery_rate"], 
-    land_max_capacity=params["land_max_capacity"],
-    initial_quality=params["initial_quality"], 
-    # fish_chance=params["fish_chance"], 
-    fallow_period=params["fallow_period"], 
-    luxury_goods_in_village=params["luxury_goods_in_village"]
-)
-    village.initialize_network()
-    village.initialize_network_relationship()
+        num_households=params["num_house"],  
+        num_land_cells=params["land_cells"], 
+        vec1_instance=vec1_instance, 
+        food_expiration_steps=params["food_expiration_steps"],
+        land_recovery_rate=params["land_recovery_rate"], 
+        land_max_capacity=params["land_max_capacity"],
+        initial_quality=params["initial_quality"], 
+        fallow_period=params["fallow_period"], 
+        luxury_goods_in_village=params["luxury_goods_in_village"]
+    )
+    try:
+        village.initialize_network()
+    except Exception as e:
+        print(e)
+        raise
+
+    print("\nInitializing network relationships...")
+    try:
+        village.initialize_network_relationship()
+    except Exception as e:
+        print(e)
+        raise
     return village
 
+def simulate_temperature(params, T0=0.0, mu=0.0, theta=0.1, sigma=0.3):
+    """
+    Simulate temperature anomaly via Ornstein-Uhlenbeck (mean-reverting):
+    dT = theta*(mu - T)*dt + sigma * dW
+    Returns an array of temperatures (anomalies).
+    """
+    years = params["year"]
+    temps = np.zeros(years)
+    temps[0] = T0
+    dt = 1.0
+    for i in range(1, years):
+        dT = theta * (mu - temps[i-1]) * dt + sigma * np.random.randn() * np.sqrt(dt)
+        temps[i] = temps[i-1] + dT
+    return temps
+
+def temp_to_effect(params, T_opt=0.0, alpha=0.3, min_effect=0.3):
+    """
+    Convert temperature anomaly to a production multiplier.
+    Peak at T = T_opt, downward quadratic penalty.
+    effect = 1 - alpha*(T - T_opt)^2
+    Clip at min_effect.
+    """
+    temps = simulate_temperature(params, T0=0.0, mu=0.0, theta=0.05, sigma=0.2)
+    effects = 1.0 - alpha * (temps - T_opt)**2
+    effects = np.clip(effects, min_effect, None)
+    return effects
+
 def run_simulation(village, vec1_instance, params):
-    # pd.read_csv(params['demog_file'])
-    for _ in range(params["year"]):
+    effects = temp_to_effect(params, T_opt=0.0, alpha=0.25, min_effect=0.4)
+    for year in range(params["year"]):
         village.run_simulation_step(
             vec1_instance = vec1_instance, 
             prod_multiplier=params["prod_multiplier"], 
@@ -92,25 +128,25 @@ def run_simulation(village, vec1_instance, params):
             spare_food_enabled=params["spare_food_enabled"],
             fallow_farming=params["fallow_farming"],
             trading_enabled = params['trading_enabled'],
-            farming_counter_max = params['farming_counter_max']
+            farming_counter_max = params['farming_counter_max'],
+            climate = effects[year]
             )
 
-def save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, file_name_gif):
-    village.plot_simulation_results(file_name, file_name_csv, vec1_instance)
-    village.plot_simulation_results_second(file_name_second)
-    village.generate_animation(file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
+def save_results(village, file_name, file_name_second, params, file_name_gif):
+    utils.plot_simulation_results(village, file_name)
+    utils.plot_simulation_results_second(village, file_name_second)
+    utils.generate_animation(village, file_name_gif, grid_dim=math.ceil(math.sqrt(params['land_cells'])))
+
 
 def main():
-
     # random.seed(10)
     demog_scale()
     params = load_parameters()
     _, file_name, _, file_name_csv, file_name_second = setup_simulation_parameters(params)
-
     vec1_instance = Vec1(params)
     village = initialize_village(params)
     run_simulation(village, vec1_instance, params)
-    save_results(village, file_name, file_name_second, file_name_csv, vec1_instance, params, params['file_name_gif'])
+    save_results(village, file_name, file_name_second, params, params['file_name_gif'])
     
 if __name__ == "__main__":
     main()

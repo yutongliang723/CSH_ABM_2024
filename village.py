@@ -2,26 +2,29 @@ from household import Household
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-import matplotlib.animation as animation
+import matplotlib.cm as cm
 from IPython.display import display
 import ipywidgets as widgets
 import random
+import time
 from agent import Agent
-# from vec import vec1_instance
 import statistics
 import scipy.special as sp
 import scipy.linalg as sl
 import warnings
-warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt
-
-# from utils import reduce_food_from_house
+from matplotlib import cm
+import copy
+import statistics
+import time
+import matplotlib
+warnings.filterwarnings("ignore")
 
 class Village:
-    def __init__(self, households, land_types, food_expiration_steps, fallow_period, luxury_goods_in_village):
+    def __init__(self, households, lands, land_by_id, food_expiration_steps, fallow_period, luxury_goods_in_village):
         self.households = households
-        self.land_types = land_types
+        self.lands = lands
+        self.land_by_id = land_by_id
         self.time = 0
         self.population_over_time = []
         self.land_capacity_over_time = []
@@ -55,7 +58,14 @@ class Village:
         self.new_born = {}
         self.migrate_priority = []
         self.migrate_counter = 0
+        self.tempreture = None
+        self.empty_land_ids = None
+        self.avg_productivity = 0
+        self.avg_prestige = 0
 
+    matplotlib.rcParams.update({'text.usetex': False,
+                            'text.latex.preamble': r"\usepackage{amsmath}\usepackage{siunitx}\usepackage{textcomp}\usepackage{gensymb}"})
+    matplotlib.rcParams.update({'font.size': 18, 'font.style': 'normal', 'font.family':'serif'})
 
     def initialize_network(self):
         
@@ -70,7 +80,9 @@ class Village:
 
                 if household != other_household:
                     distance = self.get_distance(household.location, other_household.location)
-                    # print('Distance: ', id1.location, id2.location)
+                    if distance == 0:
+                        print(household.id, other_household.id)
+                        print(household.location, other_household.location)
                     self.network[household.id]['connectivity'][other_household.id] = 1/distance
 
 
@@ -87,7 +99,7 @@ class Village:
     
     
 
-    def combined_network(self):
+    def combined_network(self, exchange_rate):
         result = {}
         for key in self.network.keys():
             merged_conn = {}
@@ -102,10 +114,9 @@ class Village:
                     else:
                         merged_conn[id_key] = value  
             household = self.get_household_by_id(key)
-            self.network_relation[key]['wealth'] = household.get_wealth(10)
+            self.network_relation[key]['wealth'] = household.get_wealth(exchange_rate)
             self.network_relation[key]['num_member'] = len(household.members)
-            # print(self.network_relation)
-            result[key] = {'connectivity': merged_conn, 'num_member': len(household.members), 'wealth': household.get_wealth(10)} # theoratically should change as a var but takes too long, 10 for now
+            result[key] = {'connectivity': merged_conn, 'num_member': len(household.members), 'wealth': household.get_wealth(exchange_rate)} 
 
         return result
 
@@ -140,122 +151,158 @@ class Village:
             else:
                 self.spare_food.pop(0)
                 still_need -= amount
-        
-        # house.add_food(food_amount - still_need)
         return food_amount - still_need
     
     def manage_luxury_goods(self, exchange_rate, excess_food_ratio, vec1_instance):
         for household in self.households:
-            # food_storage_needed = household.calculate_food_need()
             food_storage_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
             total_available_food = sum(amount for amount, _ in household.food_storage)
             excess_food = total_available_food - excess_food_ratio * food_storage_needed
-             
-            if excess_food // exchange_rate >= 1 and self.luxury_goods_in_village > 0:
-                max_luxury_goods = min(excess_food // exchange_rate, self.luxury_goods_in_village)
-                household.luxury_good_storage += max_luxury_goods
-                self.luxury_goods_in_village -= max_luxury_goods
-                food_to_exchange = max_luxury_goods * exchange_rate 
-                
-                household.reduce_food_from_house(self, food_to_exchange)
-
-                # print(f"Household {household.id} exchanged {max_luxury_goods} luxury good from village in year {self.time}")
-            # else:
-            #     print("Attention: ", excess_food, exchange_rate)
-        
+            
         self.update_spare_food_expiration() #TODO: can move it to the main loop
     
     def update_spare_food_expiration(self):
         current_time = self.time  
         self.spare_food = [(amount, age_added) for amount, age_added in self.spare_food if current_time - age_added < self.food_expiration_steps]
 
-    def trading(self, excess_food_ratio, trade_back_start, exchange_rate, vec1_instance):
-        food_for_luxury = []
-        luxury_for_food = []
 
-        # Determine trading intentions for each household
-        for household in self.households:
-            food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
-            total_available_food = sum(amount for amount, _ in household.food_storage)
-            
-            if total_available_food > excess_food_ratio * food_needed and self.luxury_goods_in_village <= 0: 
-                """ Too much food - Wants to trade for luxury goods"""
-                # print(f"Qualify to get more luxury {household.id}")
-                food_for_luxury.append(household)
-            if total_available_food < trade_back_start * food_needed and household.luxury_good_storage > 0:
-                """ Not enough food - Wants to trade for food """
-                luxury_for_food.append(household)
+    def trading(self, exchange_rate):
+        # determine intentions for each household
+        want_trade = {}  #desired resource
+        have_trade = {}  # available resource to trade
 
-        combined_network = self.combined_network()
-        for food_household in food_for_luxury:
-            best_match = None
+        for hh in self.households:
+            total_food = sum(amount for amount, _ in hh.food_storage)
+            total_resources = hh.resources  # dict: stone, obsidian, jade
+
+            # decide what they want
+            if hh.prestige < self.avg_prestige and total_resources.get('jade', 0) < 1:
+                want_trade[hh] = 'jade'
+            elif hh.productivity < self.avg_productivity: # pick tool they have least
+                if total_resources.get('obsidian', 0) < 1:
+                    want_trade[hh] = 'obsidian'
+                else:
+                    want_trade[hh] = 'stone'
+            else:
+                # no urgent need, can still trade food for minor gains
+                want_trade[hh] = 'food'
+
+            offer = [] # decide what they have to offer
+            if total_food > 1: # they can trade anything they have more than 1 unit
+                offer.append('food')
+            for r, amt in total_resources.items():
+                if amt > 0:
+                    offer.append(r)
+            have_trade[hh] = offer
+
+        network = self.combined_network(exchange_rate) # combined network for matching
+
+        # matching households
+        matched = set()
+        for hh in self.households:
+            if hh in matched:
+                continue
+            best_partner = None
             best_connectivity = -1
+            desired = want_trade[hh]
+            for partner in self.households:
+                if partner == hh or partner in matched:
+                    continue
+                if desired in have_trade[partner]:
+                    conn = network[hh.id]['connectivity'][partner.id]
+                    if conn > best_connectivity:
+                        best_connectivity = conn
+                        best_partner = partner
+            if best_partner:
+                self.execute_trade(hh, best_partner, desired, exchange_rate)
+                matched.add(hh)
+                matched.add(best_partner)
 
-            for luxury_household in luxury_for_food:
-                if food_household.id != luxury_household.id:
-                    connectivity = combined_network[food_household.id]['connectivity'][luxury_household.id]
-                    if connectivity > best_connectivity:
-                        best_connectivity = connectivity
-                        best_match = luxury_household
+    def execute_trade(self, requester, partner, resource, exchange_rate):
 
-            if best_match:
-                self.execute_trade(food_household, best_match, exchange_rate,vec1_instance)
-                luxury_for_food.remove(best_match)
+        # determine how much requester can give in exchange
+        if resource != 'food':
+            # requester trades food for the resource
+            food_available = sum(amount for amount, _ in requester.food_storage) - 1.5 * len(requester.members)
+            resource_available = partner.resources.get(resource, 0)
+            units_to_trade = min(resource_available, food_available / exchange_rate[resource])
 
-    def execute_trade(self, food_household, luxury_household, exchange_rate, vec1_instance):
-        #  Get the smaller portion household
-        food_to_trade = sum(amount for amount, _ in food_household.food_storage) - 1.5 * sum(
-            vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in food_household.members)
+            if units_to_trade > 0:
+                
+                requester.deduct_food(units_to_trade * exchange_rate[resource]) # deduct food from requester
+                requester.resources[resource] = requester.resources.get(resource, 0) + units_to_trade # transfer resource
+                partner.resources[resource] -= units_to_trade
 
-        luxury_goods_to_trade = min(luxury_household.luxury_good_storage, food_to_trade / exchange_rate)
-        
-        if luxury_goods_to_trade > 0:
-            remaining_food_to_trade = food_to_trade # to get more luxury goods
-            food_household.deduct_food(remaining_food_to_trade)
-            food_household.luxury_good_storage += luxury_goods_to_trade
-            luxury_household.luxury_good_storage -= luxury_goods_to_trade
+        else:
+            # requester wants food, trades any available resources
+            # pick the first available resource to trade
+            trade_resource = None
+            for r, amt in partner.resources.items():
+                if amt > 0:
+                    trade_resource = r
+                    break
 
-            # luxury_household.food_storage.append((food_to_trade, self.time))
+            if trade_resource:
+                resource_available = partner.resources[trade_resource]
+                # amount of food requester can get
+                food_needed = sum(amount for amount, _ in requester.food_storage) - 1.5 * len(requester.members)
+                units_to_trade = min(resource_available, food_needed / exchange_rate[trade_resource])
 
-            luxury_household.add_food(food_to_trade)
+                if units_to_trade > 0:
+                    # deduct resource from partner
+                    partner.resources[trade_resource] -= units_to_trade
+                    requester.resources[trade_resource] = requester.resources.get(trade_resource, 0) + units_to_trade
+                    requester.add_food(units_to_trade * exchange_rate[trade_resource]) # transfer food
 
-            self.network_relation[food_household.id]['connectivity'][luxury_household.id] += 1
-            self.network_relation[luxury_household.id]['connectivity'][food_household.id] += 1
+        # Update connectivity
+        self.network_relation[requester.id]['connectivity'][partner.id] += 1
+        self.network_relation[partner.id]['connectivity'][requester.id] += 1
 
-            # print(f"Household {food_household.id} traded {food_to_trade} units of food "
-            #       f"for {luxury_goods_to_trade} luxury goods with Household {luxury_household.id}.")
 
     def get_household_by_id(self, household_id):
-        """Retrieve a household by its ID."""
         for household in self.households:
             if household.id == household_id:
                 return household
         return None
     
 
-    """ shifting cultivation: field rotation, not crops""" #https://www.sciencedirect.com/topics/agricultural-and-biological-sciences/shifting-cultivation#:~:text=According%20to%20archaeological%20evidence%2C%20shifting,occurred%20(Sharma%2C%201976).
+    def drop_worst_land(self, household, max_farmland_count):
+        """Drop the worst-quality lands until household has at most max_farmland_count farmlands."""
 
+        if len(household.farmlands) <= max_farmland_count:
+            return  # nothing to drop
 
-    def migrate_household(self, household, storage_ratio_low):
-        """Handle the migration of a household to a new land cell if necessary."""
-        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
+        farmland_scores = [] # calculate land quality for each farmland
+        for land in household.farmlands:
+            # weighted score: soil and water both matter, add another function to calculate this later
+            quality = land.soil * 0.7 + land.water * 0.3
+            farmland_scores.append((land, quality))
+
+        farmland_scores.sort(key=lambda x: x[1], reverse=True)
+
+        dropped_farmlands = [fid for fid, _ in farmland_scores[max_farmland_count:]]
+
+        for land in dropped_farmlands:
+            land.occupied = None
+            land.owner = None
+
+    def  migrate_household(self, household, storage_ratio_low):
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_by_id.items() if land_data.occupied == None]
         
         if empty_land_cells:
-
             sorted_land_cells = sorted(
                                         empty_land_cells,
-                                        key=lambda x: self.get_distance(household.location, x[0]) - 0.5 * x[1]['quality']
+                                        key=lambda x: self.get_distance(household.location, x[1].location) - 0.5 * x[1].soil
                                     )
-            best_land = sorted_land_cells[0]   
-            self.land_types[household.location]['occupied'] = False
-            household.location = best_land[0]
-            self.land_types[household.location]['occupied'] = True
+            best_lands = sorted_land_cells[:10]   
+            for land_id, _ in best_lands:
+                self.land_by_id[land_id].occupied = "farm"
+            self.drop_worst_land(household, 10)
             migrate_cost = sum(amount for amount, _ in household.food_storage) * storage_ratio_low
-            """ Pay for the migration """            
+            # pay for the migration           
             household.deduct_food(migrate_cost)
             if household.id in self.migrate_priority:
                 self.migrate_priority.remove(household.id) # if it was in the priority list, then remove after successfully migrated.
-            
         else:
             if not household.id in self.migrate_priority:
                 self.migrate_priority.append(household.id)
@@ -264,12 +311,8 @@ class Village:
     
 
     def check_migration(self):
-        """Handle the migration of a household to a new land cell if necessary."""
-        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_types.items() if land_data['occupied'] == False and land_data['fallow'] == False]
-        
-        if empty_land_cells:
-            return True
-
+        """Return True if there is at least one available (non-fallow, non-occupied) land."""
+        return bool(self.empty_land_ids)
 
 
     def get_distance(self, location1, location2):
@@ -278,25 +321,41 @@ class Village:
         return abs(x1 - x2) + abs(y1 - y2)
 
     def is_land_available(self):
-        return any(not data['occupied'] and not data['fallow'] for data in self.land_types.values())
+        return any(not data.occupied and not data.fallow for data in self.land_by_id.values())
 
+
+    def find_closest_kind(self, household):
+        if household.spouses:
+            return household.spouses[-1]
+        elif household.parents:
+            return household.parents[-1]
+        else:
+            return None
                 
     def remove_empty_household(self):
-        """ Removes all empty households safely. """
         empty_households = [h for h in self.households if len(h.members) == 0]
-        
         for household in empty_households:
+            for i in household.farmlands:
+                i.owner = None
+                i.occupied = None
+            household.farmlands = []
+            print(f"Household {household.id} is empty.")
             self.remove_household(household)
             if household.id in self.migrate_priority:
                 self.migrate_priority.remove(household.id)
 
-
     def remove_household(self, household):
-        """ Safely removes a household and updates resources and network. """
-        self.luxury_goods_in_village += household.luxury_good_storage
+        kin = self.find_closest_kind(household)
+        if kin:
+            # print("found kin")
+            for r in household.resources:
+                kin.resources[r] += household.resources[r]
+            kin.food_storage.extend(household.food_storage)
+
         if household.food_storage:
             self.spare_food.extend(household.food_storage)
-        self.land_types[household.location]['occupied'] = False # free up land
+        household.home.occupied = None # free up land. Here I changed the location to id.
+        household.home.owner = None
         self.households = [h for h in self.households if h != household] # remove from households
 
         if household.id in self.network: # remove from network
@@ -313,7 +372,6 @@ class Village:
         """
         Check that all components are consistent (i.e. no errors introduced)
         """
-
         all_agents = set() # keep track of all agent IDs encountered
         all_households = set() # all household IDs
 
@@ -396,24 +454,41 @@ class Village:
             # total_food += amount_get
             # print(f"Household {household.id} gets {amount_get} from the Village.")
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
+    def get_neighbors(self, household, distance=50): # todo: put distance to parameter
+        hx, hy = household.location
+        neighbors = []
+        for other in self.households:
+            if other is household:
+                continue
+            ox, oy = other.location
+            if ((hx - ox)**2 + (hy - oy)**2)**0.5 <= distance:
+                neighbors.append(other)
+        return neighbors
+
+
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, storage_ratio_high, land_capacity_low, max_member, excess_food_ratio, trade_back_start, lux_per_year, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, climate, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
+        """Run a single simulation step (year) with timing diagnostics."""
+
+        print(f"\nSimulation Year {self.time}")
         
-        """Run a single simulation step (year)."""
-        
-        
-        # print(f"\nSimulation Year {self.time}")
-        # print(self.land_types)
+        start_total = time.perf_counter()
+        timings = {}
+        self.empty_land_ids = {
+                lid for lid, land in self.land_by_id.items() if not land.occupied and not land.fallow
+            }
+        #  1. update connectivity 
+        t0 = time.perf_counter()
         self.update_network_connectivity()
+        timings['update_network_connectivity'] = time.perf_counter() - t0
+
         longevities = []
-        
-        self.population_accumulation.append(self.population_accumulation[-1]) # the first position is generated from utils, so there is a year -1.
+        self.population_accumulation.append(self.population_accumulation[-1])
+
+
+        #  2. yearly tracking 
+        t0 = time.perf_counter()
         if self.time not in self.failure_baby:
-            self.failure_baby[self.time] = {}
-            self.failure_baby[self.time]['fertility'] = 0
-            self.failure_baby[self.time]['gender'] = 0
-            self.failure_baby[self.time]['marriage'] = 0
-            self.failure_baby[self.time]['land'] = 0
-            self.failure_baby[self.time]['household'] = 0
+            self.failure_baby[self.time] = {'fertility': 0, 'gender': 0, 'marriage': 0, 'land': 0, 'household': 0}
         if self.time not in self.failure_marry:
             self.failure_marry[self.time] = 0
         if self.time not in self.emigrate:
@@ -426,82 +501,113 @@ class Village:
             self.female[self.time] = female_count
         if self.time not in self.new_born:
             self.new_born[self.time] = 0
+        timings['init_tracking'] = time.perf_counter() - t0
+        if self.time == 1:
+            if any(land.owner is None and land.occupied for land in self.lands):
+                print("Found unowned land! Step 3")
+
+
+        #  3. household loop 
+        t0 = time.perf_counter()
         total_new_born = 0
-        households = self.households[:]  
-        random.shuffle(households)  # Randomize order to avoid the spare food order issues
-        for household in households: # self.households
-            household.produce_food(self, vec1_instance, prod_multiplier, fishing_discount, work_scale)
-            
+        households = self.households[:]
+        random.shuffle(households)
+        
+        for household in households:
+
+            total_food_needed_standard = sum(vec1_instance.rho[agent.get_age_group_index(vec1_instance)] for agent in household.members)
+            hh_start = time.perf_counter()
+            household.produce_food(self, vec1_instance, prod_multiplier, fishing_discount, work_scale, climate, total_food_needed_standard)
+            neighbors = self.get_neighbors(household)
+            if neighbors:
+                household.discover_resource(vec1_instance, work_scale, neighbors) # jade, stone, obsidian
+
             dead_agents = []
             newborn_agents = []
 
             total_food = sum(x for x, _ in household.food_storage)
-            total_food_needed = sum(vec1_instance.rho[agent.get_age_group_index(vec1_instance)] for
-            	agent in household.members)
+            total_food_needed = sum(vec1_instance.rho[agent.get_age_group_index(vec1_instance)] for agent in household.members)
+            total_food_needed_standard = total_food_needed
+
             if spare_food_enabled:
                 self.take_spare_food_for_poor(household, total_food, total_food_needed)
 
-            # z = total_food * total_food_needed
             total_food = sum(x for x, _ in household.food_storage)
-
+            
             for agent in household.members:
-                # agent_food_needed= agent.vec1_instance.rho[agent.get_age_group_index()]
-                agent_food_needed = vec1_instance.rho[agent.get_age_group_index(vec1_instance)]
+                age_index = agent.get_age_group_index(vec1_instance)
+                self.productivity = vec1_instance.phi[age_index]
+                agent_food_needed = vec1_instance.rho[age_index]
                 z = total_food * agent_food_needed / total_food_needed
                 agent.age_survive_reproduce(household, self, z, max_member, fertility_scaler, vec1_instance, conditions)
                 
                 if not agent.is_alive:
                     dead_agents.append(agent)
+                    # print(f"one agent from house {household.id} died.")
                 else:
                     if agent.newborn_agents:
+                        # print(f"Newborn: one agent from house {household.id}.")
                         newborn_agents.extend(agent.newborn_agents)
                         agent.newborn_agents = []
+
             total_new_born += len(newborn_agents)
             self.new_born[self.time] = total_new_born
             self.population_accumulation[-1] += len(newborn_agents)
-        
+
             for agent in dead_agents:
                 longevities.append(agent.age)
                 household.remove_member(agent)
-            
-            # print(f"Household {household.id} had {len(dead_agents)} members die.")
 
             for child in newborn_agents:
                 household.extend(child)
 
             household.food_storage.sort(key=lambda x: x[1])
             household.update_food_storage()
-            if not len(household.food_storage) == 0:
+            if household.food_storage:
+                household.remove_food(total_food_needed)
 
-                consumed = household.remove_food(total_food_needed)
+            hh_duration = time.perf_counter() - hh_start
+            if 'per_household' not in timings:
+                timings['per_household'] = []
+            timings['per_household'].append(hh_duration)
 
+        timings['household_loop'] = time.perf_counter() - t0
+        # if self.time == 1:
+        #     if any(land.owner is None and land.occupied for land in self.lands):
+        #         print("Found unowned land! Step 4")
+
+        #  4. remove empty households 
+        t0 = time.perf_counter()
         self.remove_empty_household()
-        # print(f"village has {total_new_born} new born.")
+        timings['remove_empty_household'] = time.perf_counter() - t0
+
+        #  5. average life span 
+        t0 = time.perf_counter()
         if longevities:
-            self.average_life_span.append(sum(longevities)/len(longevities))
+            self.average_life_span.append(sum(longevities) / len(longevities))
         else:
-            # print('average_life_span', self.average_life_span)
             self.average_life_span.append(self.average_life_span[-1])
-        
+        timings['life_span_update'] = time.perf_counter() - t0
+
+        #  6. migration 
+        t0 = time.perf_counter()
+        # print("self.migrate_priority", self.migrate_priority) #TODO find out why not in priority. Is it only because still empty lands? Perhaps need to track the migration activities
         for hh_id in self.migrate_priority:
             hh = self.get_household_by_id(hh_id)
-
             self.migrate_household(hh, storage_ratio_low)
-        # print("self.migrate_priority", self.migrate_priority)
+        timings['migrate_priority'] = time.perf_counter() - t0
 
+
+        # 7. split and emigrate 
+        t0 = time.perf_counter()
         for household in households:
             total_food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
-            land_quality = self.land_types[household.location]['quality']
+            land_quality = self.land_by_id[household.id].soil
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
             if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
-                # print(f'Poor - Migration qualify for {household.id}')
-
                 self.migrate_household(household, storage_ratio_low)
-                # print(f"Migrate{household.id}")
-            
-            
-            # percentage chance, they emigrate.
+
             if len(household.members) > max_member:
                 if emigrate_enabled and random.random() < prob_emigrate:
                     household.emigrate(self, food_expiration_steps)
@@ -509,175 +615,122 @@ class Village:
                     household.split_household(self, food_expiration_steps)
 
             household.advance_step()
+        timings['post_household_actions'] = time.perf_counter() - t0
+
+        #  8. marraige 
+        t0 = time.perf_counter()
         for household in households:
-            self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio, bride_price) 
-            
-            # if choose to comment out this line, please also comment out 
+            self.propose_marriage(household, marriage_from, marriage_to, bride_price_ratio, bride_price, exchange_rate)
             household.advance_step()
         self.remove_empty_household()
+        timings['marriage'] = time.perf_counter() - t0
+
+        #  9. updates and tracking 
+        t0 = time.perf_counter()
         self.update_tracking_variables(exchange_rate)
         self.track_land_usage()
         self.update_land_capacity(land_depreciate_factor)
-        if trading_enabled:     
+        timings['updates'] = time.perf_counter() - t0
+
+        #  10. trading and fallow land 
+        t0 = time.perf_counter()
+        trade_timings = {}
+
+        if trading_enabled:
+            t1 = time.perf_counter()
             self.manage_luxury_goods(exchange_rate, excess_food_ratio, vec1_instance)
-            self.trading(excess_food_ratio, trade_back_start, exchange_rate, vec1_instance)
+            trade_timings['manage_luxury_goods'] = time.perf_counter() - t1
+
+            t2 = time.perf_counter()
+            # self.trading(excess_food_ratio, trade_back_start, exchange_rate, vec1_instance)
+            self.trading(exchange_rate)
+            trade_timings['trading'] = time.perf_counter() - t2
+
         if fallow_farming:
+            t3 = time.perf_counter()
             self.update_fallow_land(fallow_period, storage_ratio_low, farming_counter_max)
+            trade_timings['update_fallow_land'] = time.perf_counter() - t3
+
+        timings['trade_fallow'] = time.perf_counter() - t0
+        timings.update(trade_timings)
+
+        #  11. 
+        t0 = time.perf_counter()
         self.update_network_connectivity()
         self.time += 1
-        self.luxury_goods_in_village += lux_per_year 
-        # import json
-        # if self.time in [1, 501, 1000]:
-        #     filename = f"network_year_{self.time}.json"
-        #     with open(filename, "w") as f:
-        #         json.dump({
-        #             "Year": self.time,
-        #             # "network_relation":self.network_relation,
-        #             "network_relation":self.combined_network()
-                    
-        #         }, f, indent=2)
-        #     print(f"Wrote {filename}")
-        # if self.time == 1:
-        #     print("combined_network", self.combined_network())
-            
+        self.luxury_goods_in_village += lux_per_year
+        timings['final_wrapup'] = time.perf_counter() - t0
+        
+
+        total_time = time.perf_counter() - start_total
+        timings['total'] = total_time
+        
+
+        # print("\n running time summary ")
+        # for k, v in timings.items():
+        #     if isinstance(v, list):
+        #         print(f"{k:25s}: avg {sum(v)/len(v):.4f}s over {len(v)} households")
+        #     else:
+        #         print(f"{k:25s}: {v:.4f}s")
+        # print("--")
+
+        self.avg_productivity = sum([h.productivity for h in self.households])/len(self.households)
+        self.avg_prestige = sum([h.prestige for h in self.households])/len(self.households)
+        return timings
             
         
-    
     def update_land_capacity(self, land_depreciate_factor):
         """Update the land quality for each land cell in the village."""
-        for location, land in self.land_types.items():
-            land_quality = land['quality']
-            land_max_capacity = land['max_capacity']
-            land_recovery_rate = land['recovery_rate']
-            farming_intensity = land['farming_intensity']    
+        for location, land in self.land_by_id.items():
+            land_quality = land.soil
+            land_max_capacity = land.max_capacity
+            land_recovery_rate = land.recovery_rate
+            farming_intensity = land.farming_intensity    
 
             new_quality = (
                         land_quality +
                         land_recovery_rate * (land_max_capacity - land_quality) 
                         - farming_intensity * land_quality * land_depreciate_factor # 0.01 # this 0.01 is an important factor that influence everything, can be changed
                     )
-            land['quality'] = max(0, min(new_quality, land_max_capacity))
+            land.soil = max(0, min(new_quality, land_max_capacity))
             # print(f"Land at {location} updated to quality {land['quality']:.2f}.")
-
+    
+    
     def track_land_usage(self):
         """Track the land usage and quality over time."""
         land_snapshot = {}
-        for loc, land_data in self.land_types.items():
-            land_snapshot[loc] = {
-                'quality': land_data['quality'],
-                'occupied': land_data['occupied'],
-                'household_id': None,
-                'num_members':None
-            }
-            for household in self.households:
-                if household.location == loc:
-                    land_snapshot[loc]['household_id'] = household.id
-                    land_snapshot[loc]['num_members'] = len(household.members)
-                
+
+        for loc, land_data in self.land_by_id.items():
+            # make a deep copy so later modifications won't affect this snapshot
+            land_snapshot[loc] = {'land': copy.deepcopy(land_data)}
+
         self.land_usage_over_time.append(land_snapshot)
+
+        #  tracking population stats 
         self.population.append(sum(len(household.members) for household in self.households))
         self.num_house.append(len(self.households))
-        all_ages = []
-        for household in self.households:
-            all_ages.extend([member.age for member in household.members])
 
-        if not len(all_ages):
-            self.average_age.append(0)
-        else:
-            self.average_age.append(statistics.mean(all_ages))
-    
-
-    from PIL import Image, ImageDraw, ImageFont
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-
-    def generate_animation(self, file_path, grid_dim):
-        """Generate an animation of land usage over time."""
-        if not self.land_usage_over_time:
-            # No data available to create animation
-            return
-
-        # Load color map and font
-        cmap = plt.get_cmap('OrRd')
-        try:
-            font = ImageFont.truetype("arial.ttf", 20)  # TrueType font
-        except IOError:
-            font = ImageFont.load_default()  # Fallback to default if TTF font is unavailable
-
-        cell_size = 100  # Each cell will be 100x100 pixels
-        image_size = grid_dim * cell_size  # Ensures a square grid layout
-
-        def render_animation(year):
-            """Render the animation for a given year."""
-            year_data = self.land_usage_over_time[year]
-            
-            # Create a new RGBA image
-            image = Image.new('RGBA', (image_size, image_size), color=(255, 255, 255, 0))
-            draw = ImageDraw.Draw(image)
-
-            for (loc, land_data) in year_data.items():
-                x, y = loc
-                x *= cell_size
-                y *= cell_size
-
-                # Calculate color based on land quality
-                quality = land_data['quality'] * 0.2
-                color = tuple(int(255 * c) for c in cmap(quality / 2)[:3])
-                
-                # Draw land cell
-                draw.rectangle([(x, y), (x + cell_size, y + cell_size)], fill=color)
-
-                if land_data['occupied']:
-                    # Occupied cell: add text with household and land info
-                    household_id = land_data['household_id']
-                    agent_num = land_data['num_members']
-                    text = f"{household_id}: # {agent_num}. Q: {round(quality, 2)}"
-                    
-                    # Calculate text position and center it within the cell
-                    bbox = draw.textbbox((0, 0), text, font=font)
-                    text_width = bbox[2] - bbox[0]
-                    text_height = bbox[3] - bbox[1]
-                    
-                    text_x = x + (cell_size - text_width) // 2
-                    text_y = y + (cell_size - text_height) // 2
-
-                    # Adjust to prevent clipping
-                    text_x = max(x + 5, min(text_x, x + cell_size - text_width - 5))
-                    text_y = max(y + 5, min(text_y, y + cell_size - text_height - 5))
-                    
-                    draw.text((text_x, text_y), text, fill=(0, 0, 0), font=font)
-            
-            # Add year and population information
-            draw.text((10, 10), f"Year: {year + 1}; Population: {self.population[year]}; # Houses: {self.num_house[year]}", fill=(0, 0, 0), font=font)
-            return image
-
-        # Generate frames for each year
-        animation_frames = [render_animation(year) for year in range(len(self.land_usage_over_time))]
-
-        # Save as a GIF
-        animation_frames[0].save(file_path, format='GIF', append_images=animation_frames[1:], save_all=True, duration=200, loop=0, optimize=True)
-
-        # Display in notebook (if using Jupyter or IPython environment)
-        # display(widgets.Image(value=open(file_path, 'rb').read()))
+        all_ages = [member.age for household in self.households for member in household.members]
+        self.average_age.append(statistics.mean(all_ages) if all_ages else 0)
 
     
 
     def update_tracking_variables(self, exchange_rate):
         population = sum(len(household.members) for household in self.households)
-        land_capcity_all = sum(self.land_types[key]['quality'] for key in self.land_types)
-        land_capacity = sum(self.land_types[key]['quality'] for key in self.land_types if self.land_types[key]['occupied'] == True)
-        amount_used = len([self.land_types[key]['quality'] for key in self.land_types if self.land_types[key]['occupied'] == True])
-        # print('Amount Lands Occupied', amount_used)
-        # print('Amout of Households', len(self.households))
-        if amount_used != len(self.households):
-            raise BaseException('Inconsistent land usage ({}, {})!\n'.format(amount_used, len(self.households)))
+        # print("population", population)
+        land_capcity_all = sum(self.land_by_id[key].soil for key in self.land_by_id)
+        land_capacity = sum(self.land_by_id[key].soil for key in self.land_by_id if self.land_by_id[key].occupied == "farm")
+        amount_used = len([self.land_by_id[key].soil for key in self.land_by_id if self.land_by_id[key].occupied == "farm"])
+
         total_food = sum(
         sum(amount for amount, _ in household.food_storage)  # Sum the amounts in each tuple
         for household in self.households)
 
+        weights = {"stone": 0.1, "obsidian": 0.3, "jade": 1.0}
         total_luxury = sum(
-        household.luxury_good_storage  # sum the amounts in each tuple
-        for household in self.households)
+            sum(household.resources[r] * weights[r] for r in household.resources)
+            for household in self.households
+        )
 
         self.population_over_time.append(population)
         self.land_capacity_over_time.append(land_capacity)
@@ -685,7 +738,7 @@ class Village:
         self.luxury_goods_over_time.append(total_luxury)
         self.land_capacity_over_time_all.append(land_capcity_all)
         self.track_inequality_over_time(exchange_rate)
-        self.networks.append(self.combined_network())
+        self.networks.append(self.combined_network(exchange_rate))
         self.num_households.append(len(self.households))
         self.num_migrated.append(self.migrate_counter)
         house_num = sum(len(household.members) for household in self.households)
@@ -710,195 +763,9 @@ class Village:
             eigvals, eigvecs = sl.eig(m1)  # sompute eigenvalues and eigenvectors
             lambda_max = np.max(eigvals.real)  # sargest eigenvalue (real part)
             return str(round(lambda_max, 2))
-    import matplotlib
-    matplotlib.rcParams.update({'text.usetex': False,
-                            'text.latex.preamble': r"\usepackage{amsmath}\usepackage{siunitx}\usepackage{textcomp}\usepackage{gensymb}"})
-    matplotlib.rcParams.update({'font.size': 18, 'font.style': 'normal', 'font.family':'serif'})
-    def plot_simulation_results_second(self, file_name_second):
-        
-        plt.figure(figsize=(18, 4))
-
-        # plt.subplot(2, 3, 1)
-        time_steps = list(range(self.time))
-        # failure_counts = [self.failure_marry[t] for t in time_steps]
-        # plt.plot(time_steps, failure_counts, marker='o')
-        # plt.xlabel('Time Step', size = 20)
-        # plt.ylabel('Failure Frequency', size = 20)
-        # plt.yticks(size = 20)
-        # plt.title('Marriage Proposal Failures Over Time', size = 20)
-        # # plt.legend(fontsize=15)
-
-        plt.subplot(1, 3, 1)
-        emigrate_counts = [self.emigrate[t] for t in time_steps]
-        plt.plot(time_steps, emigrate_counts, marker='o')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Emigrants', size = 20)
-        plt.yticks(size = 20)
-        plt.title('Emigrants Over Time', size = 20)
-        # plt.legend(fontsize=15)
-
-        plt.subplot(1, 3, 2)
-        male_counts = [self.male[t] for t in time_steps]
-        female_counts = [self.female[t] for t in time_steps]
-        plt.plot(time_steps, male_counts, color = 'blue', label='Male')
-        plt.plot(time_steps, female_counts, color = 'red', label='Female')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Count', size = 20)
-        plt.yticks(size = 20)
-        plt.title('Gender Distribution Over Time', size = 20)
-        plt.legend(fontsize=15)
-
-        new_born_all = [self.new_born[t] for t in time_steps]
-        plt.subplot(1, 3, 3)
-        plt.plot(time_steps,new_born_all)
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Count', size = 20)
-        plt.yticks(size = 20)
-        plt.title('New Born Over Time', size = 20)
-        # plt.legend(fontsize=15)
-
-        # plt.subplot(2, 3, 5)
-
-        # time_steps = range(self.time)
-        # reasons = ["fertility", "gender", "marriage", "land", "household"]
-
-        # data = {reason: [self.failure_baby[t].get(reason, 0) for t in time_steps] for reason in reasons}
-
-        # for reason in reasons:
-        #     plt.plot(time_steps, data[reason], label=reason)
-
-        # plt.xlabel('Time Step', size = 20)
-        # plt.ylabel('Failure Frequency', size = 20)
-        # plt.yticks(size = 20)
-        # plt.title('Failed Reproduction Reasons Over Time', size = 20)
-        # plt.legend(fontsize=15)
-
-        plt.tight_layout()
-        plt.savefig(file_name_second, format='svg')
-
-        # plt.show()
-        # plt.close()
-
     
 
-    def plot_simulation_results(self, file_name, file_name_csv, vec1_instance):
-        
-        plt.figure(figsize=(18, 12))
-
-        # Plot 1: Population over time
-        plt.subplot(3, 3, 1)
-        plt.plot(self.population_over_time, label='Population')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Population', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        # plt.legend()
-        plt.title('Population Over Time',size = 20)
-
-        # Plot 2: Land Capacity over time
-        plt.subplot(3, 3, 2)
-        plt.plot(self.land_capacity_over_time, label='Occupied Land Capacity')
-        plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Land Capacity', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
-        plt.title('Land Capacity Over Time', size = 20)
-
-        # Plot 3: Food Storage over time
-        plt.subplot(3, 3, 3)
-        plt.plot(self.food_storage_over_time, label='Food Storage')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Food Storage', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        # plt.legend(fontsize = 15)
-        plt.title('Food Storage Over Time', size = 20)
-
-        plt.subplot(3, 3, 4)
-        plt.plot(self.luxury_goods_over_time, label='Luxury Goods')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Food Storage', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
-        plt.title('Luxury Goods Over Time', size = 20)
-
-
-        # Plot 4: Average Fertility over time
-        plt.subplot(3, 3, 5)
-        plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Average Household Fertility', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
-        plt.title('Average Fertility Over Time', size = 20)
-
-        # Plot 5: Average Age over time
-        plt.subplot(3, 3, 6)
-        plt.plot(self.average_age, label='Avg. Age')
-        plt.xlabel('Time Step',size = 20)
-        plt.ylabel('Average Age', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        # plt.legend(fontsize = 15)
-        plt.title('Average Age Over Time', size = 20)
-
-        # Plot 6: Average Life Span over time
-        plt.subplot(3, 3, 7)
-        plt.plot(self.average_life_span, label='Avg. Life Span')
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Average Life Span', size = 20)
-        # plt.xticks(size = 20)
-        plt.yticks(size = 20)
-        # plt.legend(fontsize = 15)
-        plt.title('Average Life Span Over Time', size = 20)
-
-        plt.subplot(3, 3, 8)
-        plt.plot(self.population_accumulation, label='Accumulated Population', color='orange')
-        plt.xlabel('Time Step', size=20)
-        plt.ylabel('Accumulated Population', size=20)
-        plt.yticks(size=20)
-        # plt.legend(fontsize = 15)
-        plt.title('Accumulated Population', size=20)
-
-        plt.subplot(3, 3, 9)
-        plt.plot(self.gini_coefficients, color = 'blue',label = "Total Gini")
-        plt.plot(self.gini_coefficients_food, color = 'green',label = "Food Gini")
-        plt.plot(self.gini_coefficients_luxury, color = 'orange',label = "Luxury Gini")
-        plt.xlabel('Time Step', size = 20)
-        plt.ylabel('Gini Coefficient', size = 20)
-        plt.yticks(size = 20)
-        plt.legend(fontsize = 15)
-        plt.title('Inequality Over Time', size = 20)
-
-
-
-        plt.tight_layout()
-        plt.savefig(file_name, format='svg')
-        # plt.show()
-        # plt.close()
-
-        # eigen = self.get_eigen_value(vec1_instance)
-
-        # metrics = {
-        #     "Population Over Time": self.population_over_time,
-        #     "Occupied Land Capacity": self.land_capacity_over_time,
-        #     "All Land Capacity": self.land_capacity_over_time_all,
-        #     "Food Storage Over Time": self.food_storage_over_time,
-        #     "Average Household Fertility": self.average_fertility_over_time,
-        #     "Average Age Over Time": self.average_age,
-        #     "Average Life Span Over Time": self.average_life_span[1:],
-        #     "Accumulated Population": self.population_accumulation[1:],
-        #     "Gini Coefficients": self.gini_coefficients
-        # }
-        
-        # metrics_df = pd.DataFrame(metrics)
-        # metrics_df["Eigenvalue"] = pd.NA
-        # metrics_df.loc[0, "Eigenvalue"] = eigen 
-        # metrics_df.to_csv(file_name_csv, index=False)            
+    
 
     def get_agent_by_id(self, agent_id):
         for household in self.households:
@@ -907,14 +774,14 @@ class Village:
                     return agent
         return None
 
-    def propose_marriage(self, household, marriage_from, marriage_to, bride_price_ratio, bride_price):
+    def propose_marriage(self, household, marriage_from, marriage_to, bride_price_ratio, bride_price, exchange_rate):
         """Handle the marriage proposals and household merging."""
         eligible_agents = [agent for agent in household.members if agent.is_alive and agent.age >= marriage_from and agent.age <= marriage_to and agent.gender == 'female' and agent.marital_status == 'single']
 
         if not eligible_agents:
             return
         
-        combined_network = self.combined_network()
+        combined_network = self.combined_network(exchange_rate)
         agent_network = combined_network[household.id]
         # print('\nAgent network:')
         # print(agent_network)
@@ -958,7 +825,6 @@ class Village:
         return potential_spouses
     
     def marry_agents(self, female_agent, male_agent, bride_price_ratio): # admin process. not condition check
-        """Handle the marriage process, ensuring the female moves to the male's household."""
         old_household = self.get_household_by_id(female_agent.household_id)
         female_agent.marry(male_agent) # change the agent state
         
@@ -976,6 +842,8 @@ class Village:
         new_household.extend(female_agent)
         old_household.remove_member(female_agent)
         female_agent.household_id = new_household.id
+        old_household.spouses.append(new_household)
+        new_household.spouses.append(old_household) # track for kin
 
         # print(f"Marriage: {female_agent.id} (female) moved to {male_agent.id} (male) household {new_household.id}.")
     
@@ -1042,41 +910,102 @@ class Village:
                   # force the household to migrate
                 break
 
+    
 
-    def update_fallow_land(self, fallow_period, storage_ratio_low,farming_counter_max):
-            """Update land plots every year to manage the fallow cycle."""
-            if self.time < fallow_period:
-                return
-            # decide how many lands to fallow
-            # total_land = len(self.land_types)
-            # print(total_land)
-            # num_lands_to_fallow = max(1, total_land * fallow_ratio) #TODO: do we need it still when counter is introduced?
+    def update_fallow_land(self, fallow_period, storage_ratio_low, farming_counter_max):
 
-            #sort lands by quality
-            available_lands = [(land_id, land_data) for land_id, land_data in self.land_types.items() if not land_data['fallow']]
-            sorted_lands = sorted(available_lands, key=lambda x: x[1]['quality']) #ascending 
-            # select lands to fallow
-            # lands_to_fallow = [land_id for land_id, _ in sorted_lands[:num_lands_to_fallow]]
-            lands_to_fallow = [land_id for land_id, data in sorted_lands if data['farming_counter'] >= farming_counter_max]
+        start_total = time.perf_counter()
+        timings = {}
 
-            for land_id in lands_to_fallow:
-                if self.check_migration():
-                    self.land_types[land_id]['fallow'] = True
-                    self.land_types[land_id]['fallow_timer'] = fallow_period  # 5 years of fallow period
-                    self.land_types[land_id]['farming_counter'] = 0
-                    # print(f"Land plot {land_id} (quality: {self.land_types[land_id]['quality']}) is now fallow.")
-                
-                    # If the land is occupied, notify the household to migrate
-                    if self.land_types[land_id]['occupied']:
-                        self.notify_household_to_migrate(land_id, storage_ratio_low)
-                else:
-                    self.notify_household_to_migrate(land_id, storage_ratio_low) # will be put on the migration_priority list
+        if self.time < fallow_period:
+            return {"skipped": True}
 
-            # reduce timers for lands that are already fallow and restore them if the timer expires
-            for land_id, land_data in self.land_types.items():
-                if land_data['fallow']:
-                    land_data['fallow_timer'] -= 1
-                    if land_data['fallow_timer'] <= 0:
-                        land_data['fallow'] = False
-                        # print(f"Land plot {land_id} is no longer fallow.")
-            # print('land types', self.land_types)
+        land_by_id = self.land_by_id
+        check_migration = self.check_migration
+        notify_migrate = self.notify_household_to_migrate
+
+        t0 = time.perf_counter()
+
+        if not hasattr(self, "_lands_with_high_counter"):
+            self._lands_with_high_counter = set()
+
+        # add new candidates that might exceed threshold
+        # instead of scanning all, use previously stored active ones if possible
+        new_candidates = []
+        for land_id, land_data in land_by_id.items():
+            if (not land_data.fallow) and (land_data.farming_counter >= farming_counter_max):
+                new_candidates.append((land_id, land_data))
+                self._lands_with_high_counter.add(land_id)
+
+        timings["select_lands"] = time.perf_counter() - t0
+
+        t1 = time.perf_counter()
+        count_fallow = count_migrate = 0
+
+        check_time = notify_time = attr_time = 0.0
+
+        for land_id, land_data in new_candidates:
+            tcheck = time.perf_counter()
+            migrate_ok = check_migration()
+            check_time += time.perf_counter() - tcheck
+
+            if migrate_ok:
+                tattr = time.perf_counter()
+                land_data.fallow = True
+                land_data.fallow_timer = fallow_period
+                land_data.farming_counter = 0
+                attr_time += time.perf_counter() - tattr
+
+                if land_data.occupied:
+                    tnotify = time.perf_counter()
+                    notify_migrate(land_id, storage_ratio_low)
+                    notify_time += time.perf_counter() - tnotify
+                    count_migrate += 1
+            else:
+                tnotify = time.perf_counter()
+                notify_migrate(land_id, storage_ratio_low)
+                notify_time += time.perf_counter() - tnotify
+                count_migrate += 1
+                count_fallow += 1
+
+        timings["apply_fallow"] = time.perf_counter() - t1
+        timings["check_migration_calls"] = check_time
+        timings["notify_migrate_calls"] = notify_time
+        timings["attr_update"] = attr_time
+        timings["apply_fallow_candidates"] = len(new_candidates)
+
+        # print(f"[apply_fallow] {len(new_candidates)} lands → "
+        #     f"check={check_time:.3f}s, notify={notify_time:.3f}s, attr={attr_time:.3f}s, total={timings['apply_fallow']:.3f}s")
+
+        t2 = time.perf_counter()
+
+        possible_fallow_ids = [
+            land_id for land_id in self._lands_with_high_counter
+            if land_id in land_by_id
+        ]
+        expired_fallow = []
+
+        for land_id in possible_fallow_ids:
+            land_data = land_by_id[land_id]
+            if land_data.fallow:
+                land_data.fallow_timer -= 1
+                if land_data.fallow_timer <= 0:
+                    land_data.fallow = False
+                    expired_fallow.append(land_id)
+
+        # remove expired entries from the “active” list
+        for lid in expired_fallow:
+            self._lands_with_high_counter.discard(lid)
+
+        timings["update_fallow_timers"] = time.perf_counter() - t2
+        timings["total"] = time.perf_counter() - start_total
+
+        # print(
+        #     f"[update_fallow_land] Year {self.time}: "
+        #     f"select={timings['select_lands']:.4f}s, "
+        #     f"apply={timings['apply_fallow']:.4f}s, "
+        #     f"timers={timings['update_fallow_timers']:.4f}s, "
+        #     f"total={timings['total']:.4f}s"
+        # )
+
+        return timings

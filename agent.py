@@ -8,7 +8,7 @@ import itertools
 
 class Agent:
     _id_iter = itertools.count(start = 1)
-    def __init__(self, age, gender, household_id, fertility):
+    def __init__(self, age, gender, household_id, fertility, productivity):
         self.id = next(Agent._id_iter)
         self.age = age
         self.gender = gender
@@ -18,6 +18,7 @@ class Agent:
         self.fertility = fertility
         self.marital_status = 'single'
         self.partner_id = None
+        self.productivity = productivity
 
     def get_age_group_index(self, vec1_instance):
         """Determine the age group index for the agent."""
@@ -49,9 +50,13 @@ class Agent:
         # z = 1
         survival_probability = vec1_instance.pstar[age_index] * sp.gdtr(1.0 / vec1_instance.mortscale, vec1_instance.mortparms[age_index], z)
         fertility_probability = vec1_instance.mstar[age_index]* sp.gdtr(1.0 / vec1_instance.fertscale, vec1_instance.fertparm, z) * fertility_scaler
-        
+
+
         if random.random() > survival_probability:
             self.is_alive = False # need this
+            # print("dead or alive", self.is_alive)
+            # print("survival_probability", survival_probability, vec1_instance.pstar, vec1_instance.mstar, vec1_instance.mortparms)
+            # print("food", z)
             partner = village.get_agent_by_id(self.partner_id)
             if partner:
                 partner.marital_status = 'single'
@@ -108,7 +113,8 @@ class Agent:
         age = 0, 
         gender=random.choice(['male', 'female']),  
         household_id=self.household_id,
-        fertility = 0
+        fertility = 0, 
+        productivity=0
         )
         # print(f"Newborn Agent added to Household {self.household_id}.")
         self.newborn_agents.append(new_agent)
