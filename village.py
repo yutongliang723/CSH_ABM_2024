@@ -270,6 +270,7 @@ class Village:
         """Drop the worst-quality lands until household has at most max_farmland_count farmlands."""
 
         if len(household.farmlands) <= max_farmland_count:
+            print("nothing to drop")
             return  # nothing to drop
 
         farmland_scores = [] # calculate land quality for each farmland
@@ -285,11 +286,13 @@ class Village:
         for land in dropped_farmlands:
             land.occupied = None
             land.owner = None
+            household.farmlands.remove(land)
 
     def  migrate_household(self, household, storage_ratio_low):
         empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_by_id.items() if land_data.occupied == None]
         
         if empty_land_cells:
+            print("migration happened")
             sorted_land_cells = sorted(
                                         empty_land_cells,
                                         key=lambda x: self.get_distance(household.location, x[1].location) - 0.5 * x[1].soil
@@ -297,7 +300,8 @@ class Village:
             best_lands = sorted_land_cells[:10]   
             for land_id, _ in best_lands:
                 self.land_by_id[land_id].occupied = "farm"
-            self.drop_worst_land(household, 10)
+                household.farmlands.append(self.land_by_id[land_id])
+            self.drop_worst_land(household, 5)
             migrate_cost = sum(amount for amount, _ in household.food_storage) * storage_ratio_low
             # pay for the migration           
             household.deduct_food(migrate_cost)
@@ -602,10 +606,16 @@ class Village:
         t0 = time.perf_counter()
         for household in households:
             total_food_needed = sum(vec1_instance.rho[member.get_age_group_index(vec1_instance)] for member in household.members)
-            land_quality = self.land_by_id[household.id].soil
+            # land_quality = self.land_by_id[household.id].soil
+            if household.farmlands:
+                land_quality = sum(land.soil for land in household.farmlands) / len(household.farmlands)
+            else:
+                land_quality = 0
+            print("land quality", land_quality)
             total_food_storage = sum(amount for amount, _ in household.food_storage)
 
-            if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
+            # if total_food_storage < storage_ratio_high * total_food_needed and total_food_storage > storage_ratio_low * total_food_needed and land_quality < land_capacity_low:
+            if land_quality < land_capacity_low:
                 self.migrate_household(household, storage_ratio_low)
 
             if len(household.members) > max_member:
@@ -674,8 +684,12 @@ class Village:
         #         print(f"{k:25s}: {v:.4f}s")
         # print("--")
 
-        self.avg_productivity = sum([h.productivity for h in self.households])/len(self.households)
-        self.avg_prestige = sum([h.prestige for h in self.households])/len(self.households)
+        if self.households:
+            self.avg_productivity = sum(h.productivity for h in self.households) / len(self.households)
+            self.avg_prestige = sum(h.prestige for h in self.households) / len(self.households)
+        else:
+            self.avg_productivity = 0
+            self.avg_prestige = 0
         return timings
             
         

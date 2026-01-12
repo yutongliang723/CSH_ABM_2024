@@ -99,7 +99,7 @@ def generate_random_village(
         start = time.perf_counter()
         farmlands = allocate_household_land(
             home_location=location,
-            num_farm_pixels=100,
+            num_farm_pixels=50,
             land_by_id=land_by_id,   # can pass dict of land_id → Land
             weights=None
         )
