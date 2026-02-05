@@ -2,32 +2,29 @@ import random
 from agent import Agent
 import itertools
 from collections import defaultdict
-
-# from main import idh_count
-# import utils
+from clock import Clock
 
 class Household:
     _id_iter = itertools.count(start = 1)
-    def __init__(self, members, location, home, farmlands, food_storage, luxury_good_storage,food_expiration_steps):
+    def __init__(self, members, location, home, resources, food_expiration_steps, clock, fish):
         self.id = next(Household._id_iter)
         self.members = members
         self.location = location  # home location
         self.home = home
         self.food_storage = []
         self.food_storage_timestamps = []
-        self.luxury_good_storage = luxury_good_storage
-        self.current_step = 0
+        self.clock = clock
         self.food_expiration_steps = food_expiration_steps
         self.farmlands = []
         self.prestige = 0
-        self.resources = {"stone":0,
-                          "obsidian": 0,
-                          "jade":0}
+        self.resources = resources
         self.farmers = []
         self.tech_labors = []
         self.productivity = 0
         self.parents = []
         self.spouses = []
+        self.fish = fish
+        self.labor_needed = 0
 
     def clean_up(self):
         self.members.clear()  
@@ -35,12 +32,13 @@ class Household:
     
     def add_food(self, amount):
         """Add food with the current step count."""
-        self.food_storage.append((amount, self.current_step))
+        self.food_storage.append((amount, self.clock.step))
+        
     
     def update_food_storage(self):
         """Remove expired food from storage based on the current step."""
         self.food_storage = [(amount, age_added) for amount, age_added in self.food_storage
-                             if self.current_step - age_added < self.food_expiration_steps]
+                             if self.clock.step - age_added < self.food_expiration_steps]
 
     def deduct_food(household, amount_due):
         while amount_due > 0 and household.food_storage:
@@ -52,32 +50,16 @@ class Household:
                 household.food_storage.pop(0)
                 amount_due -= amount
 
-    def advance_step(self):
-        """Advance the step count for food expiration date."""
-        self.current_step += 1
-
-    def get_land_quality(self, village):
-        return village.land_by_id[self.location].soil
-    
-
-    def get_land_max_capacity(self, village):
-        return village.land_by_id[self.id].max_capacity
-    
-
-    def produce_food(self, village, vec1, prod_multiplier, fishing_discount, work_scale, climate, total_food_needed_standard):
+    def produce_food(self, vec1, prod_multiplier, fishing_discount, work_scale, climate, total_food_needed_standard):
         
-        village.farms_by_owner = defaultdict(list)
-        for land in village.land_by_id.values():   # or village.lands
-            if land.occupied == "farm" and land.owner == self.id:
-                village.farms_by_owner[land.owner].append(land)
-        farm_cells = village.farms_by_owner[self.id] 
+        farm_cells = self.farmlands
 
         if not farm_cells:
             return  # no farm lands for this household
         self.farmers = []
         self.tech_labors = []
         labor_accum = 0
-        for agent in sorted(self.members, key=lambda x: x.productivity, reverse=True):
+        for agent in sorted(self.members, key=lambda x: x.productivity, reverse=True)[self.labor_needed:]: # remove the used labor from the previous year.
             if labor_accum < total_food_needed_standard:
                 self.farmers.append(agent)
                 labor_accum += agent.work(vec1, work_scale)
@@ -88,21 +70,29 @@ class Household:
         total_work_output += sum(agent.work(vec1, work_scale) for agent in self.tech_labors) # remaining labor from tech
         total_production = 0.0
         total_land_quality = []
+        remaining_work = total_work_output
+
         for cell in farm_cells:
-            if getattr(cell, "fallow", False):
-                production = total_work_output * fishing_discount
+            if remaining_work <= 0:
+                break
+            if cell.fallow:
+                work_used = min(remaining_work, fishing_discount)
+                available_fish = min(work_used, self.fish)
+                production = available_fish
                 land_quality = 0 # should this be 0 or its original quality?
             else:
                 land_quality = cell.soil
                 max_cap = cell.max_capacity or 1
 
-                scaled_work_output = total_work_output / (total_work_output + max_cap)
+                work_used = min(remaining_work, max_cap)
+                scaled_work_output = work_used / (work_used + max_cap)
                 production = scaled_work_output * land_quality * prod_multiplier
 
                 # update land attributes
                 cell.farming_intensity = scaled_work_output
                 cell.farming_counter = getattr(cell, "farming_counter", 0) + 1
 
+            remaining_work -= work_used
             total_production += production
             total_land_quality.append(land_quality)
 
@@ -111,25 +101,22 @@ class Household:
         tool_multiplier = 1.0 # need to recount per year
         if self.resources['stone'] > 0:      tool_multiplier += 0.1
         if self.resources['obsidian'] > 0:   tool_multiplier += 0.3
-        productivity = total_work_output * tool_multiplier * (sum(total_land_quality)/len(farm_cells))
-        self.productivity = productivity
+        self.productivity = total_production * tool_multiplier
 
-        
-    
+
     def remove_food(self, amount):
-       
+        removed = 0
         for i in range(len(self.food_storage)):
-            removed = 0
-            if self.food_storage[i][0] > amount:
-                
-                self.food_storage[i] = (self.food_storage[i][0] - amount, self.food_storage[i][1])
-                removed += amount
+            if amount <= 0:
                 break
-            else:
-                amount -= self.food_storage[i][0]
-                removed += self.food_storage[i][0]
-                self.food_storage[i] = (0, 0)
-        self.food_storage = list((x, y) for x, y in self.food_storage if x > 0)
+
+            qty, kind = self.food_storage[i]
+            take = min(qty, amount)
+            self.food_storage[i] = (qty - take, kind)
+            amount -= take
+            removed += take
+
+        self.food_storage = [(x, y) for x, y in self.food_storage if x > 0]
         return removed
 
 
@@ -140,15 +127,10 @@ class Household:
 
     def extend(self, new_member):
         self.members.append(new_member)
-        # print(f"Household {self.id} has a newborn.")
 
     def remove_member(self, member):
         if member in self.members:
             self.members.remove(member)
-            # print(f"Household {self.id} removed member {member.household_id}.")
-        else:
-            # print(f"Member {member.household_id} in Household {self.id} died.")
-            pass
     
     def split_household(self, village, food_expiration_steps): # split the household if it is too large
         
@@ -186,28 +168,32 @@ class Household:
             new_food_storage = [(f/2, y) for (f, y) in self.food_storage]
             self.food_storage = new_food_storage
 
-            new_luxury_good_storage = self.luxury_good_storage // 2
-            self.luxury_good_storage -= new_luxury_good_storage
-            
+            new_resource = {material: amount/2 for material, amount in self.resources.items()}
+            self.resources = new_resource
+            new_fish = self.fish / 2
+            self.fish = new_fish
+
             new_household = Household(
-                food_storage=[(new_food_storage, 0)],
-                luxury_good_storage=new_luxury_good_storage,
+                resources= new_resource,
                 members=new_household_members,
                 location = None,
                 home = None,
-                farmlands=None,
-                food_expiration_steps = food_expiration_steps
+                food_expiration_steps = food_expiration_steps,
+                clock = Clock(),
+                fish = new_fish
             )
+            new_household.food_storage = new_food_storage
             new_household.parents.append(self.id) # track for kin
-            new_household.parents + self.parents
+            new_household.parents += self.parents # check later
             for m in new_household.members:
                 m.household_id = new_household.id
 
             random_ch = random.choice(empty_land_cells)
             new_location = random_ch.location
             random_ch.owner = new_household.id
-            from utils import allocate_household_land
+            
             land_by_id = village.land_by_id
+            from utils import allocate_household_land # import here otherwise circular import
             new_farmlands = allocate_household_land(
                             home_location=new_location,
                             num_farm_pixels=100,
@@ -222,8 +208,6 @@ class Household:
             new_household.home = random_ch
             new_household.location = new_location
             new_household.farmlands = new_farmlands
-            for i in new_farmlands:
-                i.owner = new_household.id
 
             village.households.append(new_household)
 
@@ -231,9 +215,7 @@ class Household:
                 lambda x, y:1/village.get_distance(x.location, y.location))
             new_household.create_network_connectivity(village, village.network_relation, False,
                 lambda x, y: 0)
-            # print(f'Household {self.id} splitted to {new_household.id}')
         else:
-            # print('ops, no empty land cells to split')
             pass
 
     def emigrate(self, village, food_expiration_steps):
@@ -256,19 +238,16 @@ class Household:
         
         for member in new_household_members: # need to make sure it is removed.
             self.remove_member(member)
-            village.emigrate[village.time] += 1
+            village.emigrate[village.clock.step] += 1
         
         self.food_storage = [(f/2, y) for (f, y) in self.food_storage]
-        self.luxury_good_storage //= 2  # Reduce by half
-            
-        # print(f'Household {self.id} split; {len(new_household_members)} members emigrated.')
-
+        self.resources = {r: amount // 2 for r, amount in self.resources.items()}
 
     def create_network_connectivity(self, village, network, include_luxury_goods, f):
         if self.id not in network:
             new_conn = {'connectivity': {}}
             if include_luxury_goods:
-                new_conn['luxury_goods'] = self.luxury_good_storage
+                new_conn['luxury_goods'] = self.resources
             for other_household in village.households:
                 if other_household.id != self.id:
                     new_conn['connectivity'][other_household.id] = f(self, other_household)
@@ -290,36 +269,33 @@ class Household:
     def get_total_food(self):
         return sum(amount for amount, _ in self.food_storage)
     
-    def get_total_asset(self):
+    def get_total_asset(self, exchange_rate): # is this func used??
         total_food = self.get_total_food()
-        total_luxury = self.luxury_good_storage
+        total_luxury = sum(self.resources[r] * exchange_rate[r] for r in self.resources)
         return total_food + total_luxury
     
     def get_wealth(self, exchange_rate):
         food = sum(amount for amount, _ in self.food_storage)
-        total_luxury = sum(self.resources[r] * exchange_rate[r] for r in self.resources)
-        luxury = total_luxury
-        return food +luxury 
+        total_luxury = sum(amount * exchange_rate[material] for material, amount in self.resources.items())
+        return food +total_luxury 
 
-    def get_luxury(self):
-        weights = {"stone": 0.1, "obsidian": 0.3, "jade": 1.0}
-        total_luxury = sum(self.resources[r] * weights[r] for r in self.resources)
-        # luxury = self.luxury_good_storage
+    def get_luxury(self, exchange_rate):
+        total_luxury = sum(amount * exchange_rate[material] for material, amount in self.resources.items())
         return total_luxury
     
-    def discover_resource(self, vec1, work_scale, neighbors): # technology
-
-        if neighbors: # social diffusion
+    def discover_resource(self, vec1, work_scale, neighbors, exchange_rate):
+        boost = 1.0
+        if neighbors: # the more the neighbors have, the more motivated to extract resources
             neighbor_resource_sum = sum(
-                (n.resources["stone"] +
-                n.resources["obsidian"] +
-                n.resources["jade"])
-                for n in neighbors
-            )
+                                        amount * exchange_rate[material]
+                                        for n in neighbors
+                                        for material, amount in n.resources.items()
+                                        )
+            boost += min(1.0, neighbor_resource_sum * 0.05)
 
-            boost = 1 + min(1.0, (neighbor_resource_sum / 5) * 0.10) # chances, improve the def
-        else:
-            boost = 1.0
+        # reset work each step
+        for agent in self.tech_labors:
+            agent.remaining_work = agent.work(vec1, work_scale)
 
         for patch in self.farmlands:
             # regenerate resources each year with small probability
@@ -330,24 +306,25 @@ class Household:
             if patch.has_jade:
                 patch.has_jade = random.random() < 0.5 * boost
             # attempt discovery
-            for resource, has_resource in [('stone', patch.has_stone),
-                                        ('obsidian', patch.has_obsidian),
-                                        ('jade', patch.has_jade)]:
-                if has_resource:
-                    labor_needed = 1  # unit of labor per resource
+            for patch in self.farmlands:
+                for resource, prob in [('stone', 0.7), ('obsidian', 0.5), ('jade', 0.5)]:
+                    if not getattr(patch, f"has_{resource}"):
+                        continue
+
+                    if random.random() > prob * boost:
+                        continue
+
+                    labor_needed = 1
                     while labor_needed > 0 and self.tech_labors:
                         agent = self.tech_labors[0]
-                        # ensure each agent has remaining work
-                        if not hasattr(agent, "remaining_work"):
-                            agent.remaining_work = agent.work(vec1, work_scale)
-                        if agent.remaining_work >= labor_needed:
-                            agent.remaining_work -= labor_needed
-                            self.resources[resource] += 1
-                            labor_needed = 0
-                        else:
-                            labor_needed -= agent.remaining_work
-                            agent.remaining_work = 0
-                            self.tech_labors.pop(0)  # exhausted agent
-                        # increase prestige if jade discovered
+                        take = min(agent.remaining_work, labor_needed)
+
+                        agent.remaining_work -= take
+                        labor_needed -= take
+
+                        if agent.remaining_work == 0:
+                            self.tech_labors.pop(0)
+                    if labor_needed == 0:
+                        self.resources[resource] += 1
                         if resource == 'jade':
-                            self.prestige += 1  # or scale with quantity if needed
+                            self.prestige += 1

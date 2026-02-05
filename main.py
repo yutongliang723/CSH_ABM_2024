@@ -53,9 +53,10 @@ def initialize_village(params):
         food_expiration_steps=params["food_expiration_steps"],
         land_recovery_rate=params["land_recovery_rate"], 
         land_max_capacity=params["land_max_capacity"],
-        initial_quality=params["initial_quality"], 
         fallow_period=params["fallow_period"], 
-        luxury_goods_in_village=params["luxury_goods_in_village"]
+        resources={"stone":0, "obsidian": 0, "jade":0},
+        clock = Clock(),
+        fish = params["fish"]
     )
     try:
         village.initialize_network()
@@ -113,12 +114,8 @@ def run_simulation(village, vec1_instance, params):
             bride_price = params['bride_price'],
             exchange_rate=params["exchange_rate"], 
             storage_ratio_low=params["storage_ratio_low"], 
-            storage_ratio_high=params["storage_ratio_high"], 
             land_capacity_low=params["land_capacity_low"], 
             max_member=params["max_member"], 
-            excess_food_ratio=params["excess_food_ratio"], 
-            trade_back_start=params["trade_back_start"], 
-            lux_per_year=params["lux_per_year"], 
             land_depreciate_factor=params["land_depreciate_factor"], 
             fertility_scaler=params["fertility_scaler"], 
             work_scale=params["work_scale"], 
@@ -129,7 +126,9 @@ def run_simulation(village, vec1_instance, params):
             fallow_farming=params["fallow_farming"],
             trading_enabled = params['trading_enabled'],
             farming_counter_max = params['farming_counter_max'],
-            climate = effects[year]
+            climate = effects[year],
+            trade_surplus_threshold = params['trade_surplus_threshold'],
+            max_fish = params['max_fish']
             )
 
 def save_results(village, file_name, file_name_second, params, file_name_gif):

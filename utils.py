@@ -2,6 +2,7 @@ import random
 from agent import Agent
 from household import Household
 from village import Village
+from clock import Clock
 from land import Land
 from vec import Vec1
 import scipy.special as sp
@@ -27,10 +28,8 @@ def generate_random_agent(household_id, vec1_instance):
     agent.productivity = productivity
     return agent
 
-def generate_random_household(num_members, location, home, farmlands, vec1_instance, food_expiration_steps):
-    food_storage = num_members
-    luxury_good_storage = 0
-    new_household = Household([], location, home, farmlands, food_storage, luxury_good_storage, food_expiration_steps)
+def generate_random_household(num_members, location, home, farmlands, vec1_instance, food_expiration_steps, resources, clock, fish):
+    new_household = Household([], location, home, resources, food_expiration_steps, clock, fish)
     new_household.farmlands = farmlands
     new_household.members = [generate_random_agent(new_household.id, vec1_instance) for _ in range(num_members)]
     return new_household
@@ -43,9 +42,10 @@ def generate_random_village(
     food_expiration_steps,
     land_recovery_rate,
     land_max_capacity,
-    initial_quality,
     fallow_period,
-    luxury_goods_in_village
+    resources,
+    clock,
+    fish
     ):
     
     grid_size = math.ceil(math.sqrt(num_land_cells))
@@ -72,7 +72,7 @@ def generate_random_village(
         land_by_id=land_by_id,         # new fast lookup
         food_expiration_steps=food_expiration_steps,
         fallow_period=fallow_period,
-        luxury_goods_in_village=luxury_goods_in_village
+        clock = Clock()
     )
 
     new_village.population_accumulation.append(0)
@@ -103,7 +103,6 @@ def generate_random_village(
             land_by_id=land_by_id,   # can pass dict of land_id → Land
             weights=None
         )
-        # print(f"alloc time: {time.perf_counter() - start:.3f}s")
 
         household = generate_random_household(
             random.randint(1, 5),
@@ -111,7 +110,10 @@ def generate_random_village(
             home, #home_id
             farmlands,
             vec1_instance,
-            food_expiration_steps
+            food_expiration_steps,
+            resources,
+            clock,
+            fish
         )
         
         for land_c in household.farmlands:
@@ -259,7 +261,6 @@ def allocate_household_land(
             break  # no valid free cell left
 
         best_cell = free_cells[idx]
-        # best_cell.occupied = "farm"
         allocated.append(best_cell)
 
         # mark as occupied (updates global land_by_id immediately)
@@ -281,11 +282,11 @@ def plot_simulation_results_second(self, file_name_second):
         
     plt.figure(figsize=(18, 4))
     # plt.subplot(2, 3, 1)
-    time_steps = list(range(self.time))
+    time_steps = list(range(self.clock.step))
+    # print("time_steps", time_steps)
 
     plt.subplot(1, 3, 1)
     emigrate_counts = [self.emigrate[t] for t in time_steps]
-    # print("emigrate_counts", emigrate_counts)
     plt.plot(time_steps, emigrate_counts, marker='o')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Emigrants', size = 20)
@@ -326,9 +327,7 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.population_over_time, label='Population')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Population', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
-    # plt.legend()
     plt.title('Population Over Time',size = 20)
 
     # Plot 2: Land Capacity over time
@@ -337,7 +336,6 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.land_capacity_over_time_all, label='All Land Capacity', linestyle='--')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Land Capacity', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
     plt.legend(fontsize = 15)
     plt.title('Land Capacity Over Time', size = 20)
@@ -347,16 +345,13 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.food_storage_over_time, label='Food Storage')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Food Storage', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
-    # plt.legend(fontsize = 15)
     plt.title('Food Storage Over Time', size = 20)
 
     plt.subplot(3, 3, 4)
     plt.plot(self.luxury_goods_over_time, label='Luxury Goods')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Food Storage', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
     plt.legend(fontsize = 15)
     plt.title('Luxury Goods Over Time', size = 20)
@@ -367,7 +362,6 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.average_fertility_over_time, label='Avg. Fertility')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Average Household Fertility', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
     plt.legend(fontsize = 15)
     plt.title('Average Fertility Over Time', size = 20)
@@ -387,9 +381,7 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.average_life_span, label='Avg. Life Span')
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Average Life Span', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
-    # plt.legend(fontsize = 15)
     plt.title('Average Life Span Over Time', size = 20)
 
     plt.subplot(3, 3, 8)
@@ -397,7 +389,6 @@ def plot_simulation_results(self, file_name):
     plt.xlabel('Time Step', size=20)
     plt.ylabel('Accumulated Population', size=20)
     plt.yticks(size=20)
-    # plt.legend(fontsize = 15)
     plt.title('Accumulated Population', size=20)
 
     plt.subplot(3, 3, 9)
@@ -411,7 +402,6 @@ def plot_simulation_results(self, file_name):
     plt.title('Inequality Over Time', size = 20)
     plt.tight_layout()
     plt.savefig(file_name, format='svg')
-
 
 def generate_animation(self, file_path, grid_dim):
         if not self.land_usage_over_time:
@@ -460,7 +450,7 @@ def generate_animation(self, file_path, grid_dim):
                     color = house_colors.get(owner_id, (180, 180, 180)) ## ISSUES
                     if color == (180, 180, 180) and owner_id not in [hs.id for hs in self.households]:
                         orphaned_hs.append(owner_id)
-                    #     print("this household not in self.housholds", owner_id)
+                        print("this household not in self.housholds", owner_id)
                 else:
                     color = (220, 220, 220)  # empty
                 img_array[y, x] = color
