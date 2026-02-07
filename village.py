@@ -275,28 +275,32 @@ class Village:
         farmland_scores.sort(key=lambda x: x[1], reverse=True)
 
         dropped_farmlands = [fid for fid, _ in farmland_scores[-max_farmland_count:]]
-
+        if str(household.id) =='4': print(dropped_farmlands)
         for land in dropped_farmlands:
             land.occupied = None
             land.owner = None
             household.farmlands.remove(land)
 
-    def migrate_household(self, household, storage_ratio_low):
-        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_by_id.items() if land_data.occupied == None]
+    def migrate_household(self, household, storage_ratio_low, shifting = False):
+        empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_by_id.items() if land_data.occupied == None and land_data.owner == None and not land_data.fallow]
         migration_result = False
         if empty_land_cells:
             # print("migration happened", household.id)
-            # print("before land", len(household.farmlands))
+            # if str(household.id) == "4":
+            #     print("before land", household.farmlands)
             sorted_land_cells = sorted(
                                         empty_land_cells,
                                         key=lambda x: self.get_distance(household.location, x[1].location) - 0.5 * x[1].soil
                                     )
             best_lands = sorted_land_cells[:10]   # so to only replace partial lands; also drop 10 worst lands
-            for land_id, _ in best_lands:
-                self.land_by_id[land_id].occupied = "farm"
-                self.land_by_id[land_id].owner = household.id
-                household.farmlands.append(self.land_by_id[land_id])
-            self.drop_worst_land(household, 10)
+            # if str(household.id) == "4":
+            #     print("best_lands",best_lands)
+            for land_id, land in best_lands:
+                land.occupied = "farm"
+                land.owner = household.id
+                household.farmlands.append(land)
+            if not shifting: # only drop lands in case of land quality issue migration
+                self.drop_worst_land(household, 10)
             # print("after land", len(household.farmlands))
             
             labor_needed = math.floor(0.1 * len(household.members))
@@ -360,6 +364,7 @@ class Village:
         for farmland in household.farmlands:
             farmland.owner = None
             farmland.occupied = None
+            household.farmlands.remove(farmland)
         # self.households = [h for h in self.households if h.id != household.id] # remove from households # this does not seem to be working
         if household in self.households:
             self.households.remove(household)
@@ -472,7 +477,7 @@ class Village:
         return neighbors
 
 
-    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, land_capacity_low, max_member, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, climate, trade_surplus_threshold, max_fish, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False):
+    def run_simulation_step(self, vec1_instance, prod_multiplier, fishing_discount, fallow_period, food_expiration_steps, marriage_from, marriage_to, bride_price_ratio, exchange_rate, storage_ratio_low, land_capacity_low, max_member, land_depreciate_factor, fertility_scaler, work_scale, conditions, prob_emigrate, bride_price, farming_counter_max, climate, trade_surplus_threshold, max_fish, emigrate_enabled = False, spare_food_enabled=False, fallow_farming = False, trading_enabled = False, shifting_cultivation = False):
         """Run a single simulation step (year) with timing diagnostics."""
 
         print(f"\nSimulation Year {self.clock.step}")
@@ -654,7 +659,7 @@ class Village:
 
         if fallow_farming:
             t3 = time.perf_counter()
-            self.update_fallow_land(fallow_period, storage_ratio_low, farming_counter_max)
+            self.update_fallow_land(fallow_period, storage_ratio_low, farming_counter_max, shifting_cultivation)
             trade_timings['update_fallow_land'] = time.perf_counter() - t3
 
         timings['trade_fallow'] = time.perf_counter() - t0
@@ -663,12 +668,17 @@ class Village:
         #  11. 
         t0 = time.perf_counter()
         self.update_network_connectivity(exchange_rate)
+        if str(self.clock.step) == "1":
+            house4 = self.get_household_by_id(4)
+            print(house4.farmlands)
         self.clock.tick()
         timings['final_wrapup'] = time.perf_counter() - t0
         
 
         total_time = time.perf_counter() - start_total
         timings['total'] = total_time
+
+
 
         if self.households:
             self.avg_productivity = sum(h.productivity for h in self.households) / len(self.households)
@@ -882,13 +892,13 @@ class Village:
             self.gini_coefficients_luxury.append(0)
     
 
-    def notify_household_to_migrate(self, land_id, storage_ratio_low):
+    def notify_household_to_migrate(self, land_id, storage_ratio_low, shifting = False):
         """Notify the household occupying the land to migrate."""
         migration_result = False
         
         for household in self.households:
             if household.location == land_id:
-                migration_result = self.migrate_household(household, storage_ratio_low)
+                migration_result = self.migrate_household(household, storage_ratio_low, shifting)
                 self.migrate_counter += 1 # record how many people migrated
                   # force the household to migrate
                 break
@@ -897,7 +907,7 @@ class Village:
 
     
 
-    def update_fallow_land(self, fallow_period, storage_ratio_low, farming_counter_max):
+    def update_fallow_land(self, fallow_period, storage_ratio_low, farming_counter_max, shifting_cultivation):
 
         start_total = time.perf_counter()
         timings = {}
@@ -909,8 +919,6 @@ class Village:
         check_migration = self.check_migration
         notify_migrate = self.notify_household_to_migrate
 
-        t0 = time.perf_counter()
-
         if not hasattr(self, "_lands_with_high_counter"):
             self._lands_with_high_counter = set()
 
@@ -921,46 +929,44 @@ class Village:
             if (not land_data.fallow) and (land_data.farming_counter >= farming_counter_max):
                 new_candidates.append((land_id, land_data))
                 self._lands_with_high_counter.add(land_id)
-
-        timings["select_lands"] = time.perf_counter() - t0
-
-        t1 = time.perf_counter()
         count_fallow = count_migrate = 0
 
-        check_time = notify_time = attr_time = 0.0
-
         for land_id, land_data in new_candidates:
-            tcheck = time.perf_counter()
             migrate_ok = check_migration()
-            check_time += time.perf_counter() - tcheck
 
-            if migrate_ok: # if there are empty lands around
-                tattr = time.perf_counter()
+            if shifting_cultivation:
+                if migrate_ok: # if there are empty lands around
+                    
+
+                    if land_data.occupied:
+                        # print("shifting_cultivation")
+                         # get extra land when current land in fallow
+                        count_migrate += 1
+                        household = self.get_household_by_id(land_data.owner)
+                        # household.farmlands.remove(land_data)
+                        if land_data in household.farmlands:
+                            household.farmlands.remove(land_data)
+                        else:
+                            print("Alert: land_data not in household, ", household.id, land_data.owner, land_data.location, land_data)
+                        land_data.owner = None
+                        land_data.occupied = None
+                        # notify_migrate(land_id, storage_ratio_low, shifting = True)
+                        self.migrate_household(household, storage_ratio_low, shifting = True)
+                        land_data.fallow = True
+                        land_data.fallow_timer = fallow_period
+                        land_data.farming_counter = 0
+                
+                else: # put them on priority list and do not fallow 
+                    notification_result = notify_migrate(land_id, storage_ratio_low)
+                    count_migrate += 1
+                    if notification_result: # if migrated successfully
+                        count_fallow += 1
+                        print("shifted cultivation")
+            else: # fallow
                 land_data.fallow = True
                 land_data.fallow_timer = fallow_period
                 land_data.farming_counter = 0
-                attr_time += time.perf_counter() - tattr
-
-                if land_data.occupied:
-                    tnotify = time.perf_counter()
-                    notify_migrate(land_id, storage_ratio_low)
-                    notify_time += time.perf_counter() - tnotify
-                    count_migrate += 1
-            else:
-                tnotify = time.perf_counter()
-                notification_result = notify_migrate(land_id, storage_ratio_low)
-                notify_time += time.perf_counter() - tnotify
                 count_migrate += 1
-                if notification_result: # if migrated successfully
-                    count_fallow += 1
-
-        timings["apply_fallow"] = time.perf_counter() - t1
-        timings["check_migration_calls"] = check_time
-        timings["notify_migrate_calls"] = notify_time
-        timings["attr_update"] = attr_time
-        timings["apply_fallow_candidates"] = len(new_candidates)
-
-        t2 = time.perf_counter()
 
         possible_fallow_ids = [ # because it saves one round of iteration
             land_id for land_id in self._lands_with_high_counter
@@ -979,8 +985,3 @@ class Village:
         # remove expired entries from the “active” list
         for lid in expired_fallow:
             self._lands_with_high_counter.discard(lid)
-
-        timings["update_fallow_timers"] = time.perf_counter() - t2
-        timings["total"] = time.perf_counter() - start_total
-
-        return timings

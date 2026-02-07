@@ -42,6 +42,7 @@
         "fallow_farming":true,
         "emigrate_enabled": true,
         "trading_enabled": true,
+        "shifting_cultivation": true,
         "conditions":{
                     "use_fertility": true,
                     "check_gender": true,

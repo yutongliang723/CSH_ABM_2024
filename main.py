@@ -125,6 +125,7 @@ def run_simulation(village, vec1_instance, params):
             spare_food_enabled=params["spare_food_enabled"],
             fallow_farming=params["fallow_farming"],
             trading_enabled = params['trading_enabled'],
+            shifting_cultivation = params['shifting_cultivation'],
             farming_counter_max = params['farming_counter_max'],
             climate = effects[year],
             trade_surplus_threshold = params['trade_surplus_threshold'],
@@ -138,7 +139,7 @@ def save_results(village, file_name, file_name_second, params, file_name_gif):
 
 
 def main():
-    # random.seed(10)
+    random.seed(10)
     demog_scale()
     params = load_parameters()
     _, file_name, _, file_name_csv, file_name_second = setup_simulation_parameters(params)

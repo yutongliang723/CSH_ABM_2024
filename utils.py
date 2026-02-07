@@ -16,7 +16,7 @@ import matplotlib.animation as animation
 from PIL import Image, ImageFont, ImageDraw
 warnings.filterwarnings("ignore")
 
-# random.seed(10)
+random.seed(10)
 def generate_random_agent(household_id, vec1_instance):
     m0 = vec1_instance.mstar * sp.gdtr(1.0 / vec1_instance.fertscale, vec1_instance.fertparm, 1)
     age = random.randint(1, 20)
@@ -219,7 +219,7 @@ def allocate_household_land(
         }
 
     # 1. extract free cells 
-    free_cells = [cell for cell in land_by_id.values() if cell.occupied is None]
+    free_cells = [cell for cell in land_by_id.values() if cell.occupied is None and cell.owner is None]
     if not free_cells:
         return []
 
@@ -371,9 +371,7 @@ def plot_simulation_results(self, file_name):
     plt.plot(self.average_age, label='Avg. Age')
     plt.xlabel('Time Step',size = 20)
     plt.ylabel('Average Age', size = 20)
-    # plt.xticks(size = 20)
     plt.yticks(size = 20)
-    # plt.legend(fontsize = 15)
     plt.title('Average Age Over Time', size = 20)
 
     # Plot 6: Average Life Span over time

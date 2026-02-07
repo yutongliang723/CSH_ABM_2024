@@ -133,8 +133,8 @@ class Household:
             self.members.remove(member)
     
     def split_household(self, village, food_expiration_steps): # split the household if it is too large
-        
-        empty_land_cells = [land for land in village.lands if land.occupied == None and not land.fallow]
+        print("split id old", self.id)
+        empty_land_cells = [land for land in village.lands if land.occupied == None and not land.fallow and land.owner == None]
         
         if len(empty_land_cells) > 100:
             new_household_members_ids = set()
@@ -205,9 +205,12 @@ class Household:
             for land in new_farmlands:
                 land.occupied = "farm"
                 land.owner = new_household.id
+                new_household.farmlands.append(land)
+
             new_household.home = random_ch
             new_household.location = new_location
             new_household.farmlands = new_farmlands
+            print("new_household", new_household.id)
 
             village.households.append(new_household)
 
