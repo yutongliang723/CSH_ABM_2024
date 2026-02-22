@@ -92,22 +92,22 @@ def generate_random_village(
         
         home_land = available_lands.pop() # in the future add more functions to choose the home land
         home_land.occupied = "house"
+        
         location = home_land.location
-        home = home_land
         
         # allocate farmland
         start = time.perf_counter()
         farmlands = allocate_household_land(
             home_location=location,
             num_farm_pixels=50,
-            land_by_id=land_by_id,   # can pass dict of land_id → Land
+            lands = available_lands,   
             weights=None
         )
 
         household = generate_random_household(
             random.randint(1, 5),
             location,
-            home, #home_id
+            home_land, #home_id
             farmlands,
             vec1_instance,
             food_expiration_steps,
@@ -119,6 +119,7 @@ def generate_random_village(
         for land_c in household.farmlands:
             land_c.owner = household.id
             land_c.occupied = "farm"
+            available_lands.remove(land_c)
             
         home_land.owner = household.id
         home_land.occupied = "house"
@@ -203,11 +204,11 @@ def land_score(cell, home_location, allocated_cells=None, weights=None):
 
 
 def allocate_household_land(
-    home_location,
-    land_by_id,
-    weights=None,
-    num_farm_pixels=100,
-):
+                            home_location,
+                            lands, #land_by_id,
+                            weights=None,
+                            num_farm_pixels=100,
+                            ):
     if weights is None:
         weights = {
             "distance_home": 1.0,
@@ -217,9 +218,12 @@ def allocate_household_land(
             "max_capacity": 1.0,
             "recovery_rate": 1.0,
         }
-
+    # for cell in lands:
+    #     if cell.occupied == "house":
+    #         if cell.owner is None:
+    #             print("WARNING: house with no owner", cell)
     # 1. extract free cells 
-    free_cells = [cell for cell in land_by_id.values() if cell.occupied is None and cell.owner is None]
+    free_cells = [cell for cell in lands if cell.occupied is None and cell.owner is None]
     if not free_cells:
         return []
 
@@ -265,6 +269,7 @@ def allocate_household_land(
 
         # mark as occupied (updates global land_by_id immediately)
         # mark in mask so we skip it later
+        best_cell.occupied = "farm"
         free_mask[idx] = False
 
         # update clustering effect around this new farm - neighboring effects

@@ -25,7 +25,7 @@
         "land_capacity_low": 0.8,
         "max_member": 25,
         "land_depreciate_factor": 0.02,
-        "fertility_scaler": 3,
+        "fertility_scaler": 2,
         "work_scale": 1.5, 
         "luxury_goods_in_village": 0,
         "water_source": 5,

@@ -275,7 +275,6 @@ class Village:
         farmland_scores.sort(key=lambda x: x[1], reverse=True)
 
         dropped_farmlands = [fid for fid, _ in farmland_scores[-max_farmland_count:]]
-        if str(household.id) =='4': print(dropped_farmlands)
         for land in dropped_farmlands:
             land.occupied = None
             land.owner = None
@@ -285,16 +284,11 @@ class Village:
         empty_land_cells = [(cell_id, land_data) for cell_id, land_data in self.land_by_id.items() if land_data.occupied == None and land_data.owner == None and not land_data.fallow]
         migration_result = False
         if empty_land_cells:
-            # print("migration happened", household.id)
-            # if str(household.id) == "4":
-            #     print("before land", household.farmlands)
             sorted_land_cells = sorted(
                                         empty_land_cells,
                                         key=lambda x: self.get_distance(household.location, x[1].location) - 0.5 * x[1].soil
                                     )
             best_lands = sorted_land_cells[:10]   # so to only replace partial lands; also drop 10 worst lands
-            # if str(household.id) == "4":
-            #     print("best_lands",best_lands)
             for land_id, land in best_lands:
                 land.occupied = "farm"
                 land.owner = household.id
@@ -481,7 +475,23 @@ class Village:
         """Run a single simulation step (year) with timing diagnostics."""
 
         print(f"\nSimulation Year {self.clock.step}")
-        
+        if str(self.clock.step) == "0":
+            print('year 0')
+            for hh in self.households:
+                for ll in hh.farmlands:
+                    if ll.owner == hh.id:
+                        pass
+                    else: 
+                        print(f"{hh.id} has bad land. hh")
+                        print("ll.owner", ll.owner, "hh.id", hh.id, "ll.occupied", ll.occupied)
+            for land in self.lands:
+                owner = land.owner
+                if owner:
+                    house = self.get_household_by_id(owner)
+                    if land in house.farmlands:
+                        pass
+                    else:
+                        print(f"{land} not belonged")
         start_total = time.perf_counter()
         timings = {}
         self.empty_land_ids = {
@@ -620,14 +630,12 @@ class Village:
 
             if land_quality < land_capacity_low:
                 self.migrate_household(household, storage_ratio_low)
-                # print("self.migrate_household(household, storage_ratio_low)")
 
             elif len(household.members) > max_member:
                 if emigrate_enabled and random.random() < prob_emigrate:
                     household.emigrate(self, food_expiration_steps)
                 else:
                     household.split_household(self, food_expiration_steps)
-                    # print("split_household")
 
             household.clock.tick()
         
@@ -665,12 +673,10 @@ class Village:
         timings['trade_fallow'] = time.perf_counter() - t0
         timings.update(trade_timings)
 
+
         #  11. 
         t0 = time.perf_counter()
         self.update_network_connectivity(exchange_rate)
-        if str(self.clock.step) == "1":
-            house4 = self.get_household_by_id(4)
-            print(house4.farmlands)
         self.clock.tick()
         timings['final_wrapup'] = time.perf_counter() - t0
         
@@ -678,7 +684,8 @@ class Village:
         total_time = time.perf_counter() - start_total
         timings['total'] = total_time
 
-
+        
+    
 
         if self.households:
             self.avg_productivity = sum(h.productivity for h in self.households) / len(self.households)
@@ -687,6 +694,7 @@ class Village:
             self.avg_productivity = 0
             self.avg_prestige = 0
         return timings
+    
             
         
     def update_land_capacity(self, land_depreciate_factor):
@@ -936,18 +944,19 @@ class Village:
 
             if shifting_cultivation:
                 if migrate_ok: # if there are empty lands around
-                    
-
                     if land_data.occupied:
-                        # print("shifting_cultivation")
                          # get extra land when current land in fallow
                         count_migrate += 1
-                        household = self.get_household_by_id(land_data.owner)
+                        household = self.get_household_by_id(land_data.owner) # debugging: land owner declared but is not on the family list.
                         # household.farmlands.remove(land_data)
                         if land_data in household.farmlands:
                             household.farmlands.remove(land_data)
                         else:
                             print("Alert: land_data not in household, ", household.id, land_data.owner, land_data.location, land_data)
+                            print("Household farmlands", household.farmlands)
+                            print("Village households")
+                            for household in self.households:
+                                print (household.id)
                         land_data.owner = None
                         land_data.occupied = None
                         # notify_migrate(land_id, storage_ratio_low, shifting = True)
