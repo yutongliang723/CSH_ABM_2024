@@ -27,9 +27,13 @@ class Land:
         self.farming_counter = 0
         self.owner = None
         self.occupied = None
-        self.has_stone = random.random() < 1 #TODO: later make it the parameter
-        self.has_obsidian = random.random() < 0.5
-        self.has_jade = random.random() < 0.3
+        self.has_stone = random.random() < 0.01 #TODO: later make it the parameter
+        self.has_obsidian = random.random() < 0.005
+        self.has_jade = random.random() < 0.001
+        # CHANGE: finite per-patch stock so discovery depletes the land instead of being infinite
+        self.stone_amount = random.randint(3, 6) if self.has_stone else 0
+        self.obsidian_amount = random.randint(3, 6) if self.has_obsidian else 0
+        self.jade_amount = random.randint(3, 6) if self.has_jade else 0
 
     def _generate_water(self, grid_size):
         x, y = self.location
@@ -41,4 +45,3 @@ class Land:
         base = 0.5 + 0.3 * self.water  # wetter land = more fertile
         noise = random.uniform(-0.1, 0.1)
         return max(0, min(1, base + noise))
-    

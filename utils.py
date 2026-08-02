@@ -111,7 +111,7 @@ def generate_random_village(
             farmlands,
             vec1_instance,
             food_expiration_steps,
-            resources,
+            dict(resources), # lots of luxury goods
             clock,
             fish
         )
@@ -218,10 +218,7 @@ def allocate_household_land(
             "max_capacity": 1.0,
             "recovery_rate": 1.0,
         }
-    # for cell in lands:
-    #     if cell.occupied == "house":
-    #         if cell.owner is None:
-    #             print("WARNING: house with no owner", cell)
+
     # 1. extract free cells 
     free_cells = [cell for cell in lands if cell.occupied is None and cell.owner is None]
     if not free_cells:
@@ -290,7 +287,7 @@ def plot_simulation_results_second(self, file_name_second):
     time_steps = list(range(self.clock.step))
     # print("time_steps", time_steps)
 
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 4, 1)  # CHANGE: was 1,3,1 -> made room for trade activity subplot
     emigrate_counts = [self.emigrate[t] for t in time_steps]
     plt.plot(time_steps, emigrate_counts, marker='o')
     plt.xlabel('Time Step', size = 20)
@@ -299,7 +296,7 @@ def plot_simulation_results_second(self, file_name_second):
     plt.title('Emigrants Over Time', size = 20)
     # plt.legend(fontsize=15)
 
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, 4, 2)  # CHANGE: was 1,3,2
     male_counts = [self.male[t] for t in time_steps]
     female_counts = [self.female[t] for t in time_steps]
     plt.plot(time_steps, male_counts, color = 'blue', label='Male')
@@ -312,13 +309,24 @@ def plot_simulation_results_second(self, file_name_second):
 
     new_born_all = [self.new_born[t] for t in time_steps]
     print("new_born_all", new_born_all)
-    plt.subplot(1, 3, 3)
+    plt.subplot(1, 4, 3) 
     plt.plot(time_steps,new_born_all)
     plt.xlabel('Time Step', size = 20)
     plt.ylabel('Count', size = 20)
     plt.yticks(size = 20)
     plt.title('New Born Over Time', size = 20)
-    
+
+    plt.subplot(1, 4, 4)
+    trade_steps = list(range(len(self.trade_count_over_time)))
+    plt.plot(trade_steps, self.trade_count_over_time, label='Trade Count')
+    plt.plot(trade_steps, self.food_traded_over_time, label='Food Traded (food\u2192goods)')
+    plt.plot(trade_steps, self.resource_traded_over_time, label='Resource Traded (goods\u2192food)')
+    plt.xlabel('Time Step', size = 20)
+    plt.ylabel('Amount', size = 20)
+    plt.yticks(size = 20)
+    plt.legend(fontsize=12)
+    plt.title('Trade Activity Over Time', size = 20)
+
     plt.tight_layout()
     # plt.show()
     plt.savefig(file_name_second, format='svg')
@@ -395,14 +403,17 @@ def plot_simulation_results(self, file_name):
     plt.title('Accumulated Population', size=20)
 
     plt.subplot(3, 3, 9)
-    plt.plot(self.gini_coefficients, color = 'blue',label = "Total Gini")
-    plt.plot(self.gini_coefficients_food, color = 'green',label = "Food Gini")
-    plt.plot(self.gini_coefficients_luxury, color = 'orange',label = "Luxury Gini")
-    plt.xlabel('Time Step', size = 20)
-    plt.ylabel('Gini Coefficient', size = 20)
-    plt.yticks(size = 20)
-    plt.legend(fontsize = 15)
-    plt.title('Inequality Over Time', size = 20)
+    plt.plot(self.gini_coefficients, color='darkblue', label="Total Gini", 
+            linestyle='-', linewidth=3, alpha=0.9)
+    plt.plot(self.gini_coefficients_food, color='forestgreen', label="Food Gini", 
+            linestyle='--', linewidth=3, alpha=0.9)
+    plt.plot(self.gini_coefficients_luxury, color='darkorange', label="Luxury Gini", 
+            linestyle='-.', linewidth=3, alpha=0.9)
+    plt.xlabel('Time Step', size=20)
+    plt.ylabel('Gini Coefficient', size=20)
+    plt.yticks(size=20)
+    plt.legend(fontsize=15)
+    plt.title('Inequality Over Time', size=20)
     plt.tight_layout()
     plt.savefig(file_name, format='svg')
 
@@ -458,7 +469,7 @@ def generate_animation(self, file_path, grid_dim):
                     color = (220, 220, 220)  # empty
                 img_array[y, x] = color
 
-            # Create image
+            # create image
             img = Image.fromarray(img_array, mode="RGB").resize(
                 (image_size, image_size), resample=Image.NEAREST
             )
@@ -511,4 +522,3 @@ def generate_animation(self, file_path, grid_dim):
             optimize=False,
         )
         print("Animation saved:", file_path)
-    

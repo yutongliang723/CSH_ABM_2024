@@ -30,14 +30,14 @@ class Agent:
     def work(self, vec1_instance, work_scale):
         """Simulate work done by the agent based on effectiveness parameter."""
         work_output = 0
-        # if self.is_alive:
-        if 1 ==1:
+        if self.is_alive:
             age_index = self.get_age_group_index(vec1_instance)
             phi = vec1_instance.phi[age_index]
             work_output = phi * work_scale
-            return work_output
-    
-    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance, conditions):
+        return work_output
+
+
+    def age_survive_reproduce(self, household, village, z, max_member, fertility_scaler, vec1_instance, conditions, mechanisms):
         """Simulate aging, survival, and reproduction based on probabilities."""
         
         if not self.is_alive:
@@ -46,12 +46,11 @@ class Agent:
         self.age += 1
 
         age_index = self.get_age_group_index(vec1_instance)
-        # z = 1
         survival_probability = vec1_instance.pstar[age_index] * sp.gdtr(1.0 / vec1_instance.mortscale, vec1_instance.mortparms[age_index], z)
         fertility_probability = vec1_instance.mstar[age_index]* sp.gdtr(1.0 / vec1_instance.fertscale, vec1_instance.fertparm, z) * fertility_scaler
 
         if random.random() > survival_probability:
-            self.is_alive = False # need this
+            self.is_alive = False
             partner = village.get_agent_by_id(self.partner_id)
             if partner:
                 partner.marital_status = 'single'
@@ -59,9 +58,9 @@ class Agent:
         
         self.fertility = fertility_probability
         judge = -1
-
         failures = village.failure_baby.setdefault(village.clock, {})
 
+        # These biological/social checks always apply, regardless of birth_limit_enabled.
         # gender check
         if conditions.get("check_gender", False) and self.gender != "female":
             failures["gender"] = failures.get("gender", 0) + 1
@@ -82,13 +81,15 @@ class Agent:
             failures["land"] = failures.get("land", 0) + 1
             judge += 1
 
-        # household size
-        elif conditions.get("exceed_member", False) and len(household.members) + len(self.newborn_agents) >= max_member:
+        # household size cap - ONLY this one is controlled by birth_limit_enabled
+        elif (mechanisms.get('birth_limit_enabled', True)
+              and conditions.get("exceed_member", False)
+              and len(household.members) + len(self.newborn_agents) >= max_member):
             failures["household"] = failures.get("household", 0) + 1
             judge += 1
 
         if judge == -1:
-            self.reproduce() # only reproduce if no failures
+            self.reproduce()
         
     def reproduce(self):
         """Simulate reproduction by adding new agents to the household."""
@@ -99,7 +100,6 @@ class Agent:
         fertility = 0, 
         productivity=0
         )
-        # print(f"Newborn Agent added to Household {self.household_id}.")
         self.newborn_agents.append(new_agent)
     
     def marry(self, partner):

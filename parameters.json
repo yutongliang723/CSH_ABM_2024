@@ -1,54 +1,64 @@
 {
-    "simulation_parameters": 
-    {
-        "year":100, 
+    "simulation_parameters": {
+        "year": 200,
         "num_house": 60,
         "land_cells": 10000,
-        "prod_multiplier": 10,
+        "prod_multiplier": 5,
         "fishing_discount": 1,
-        "fallow_period": 3,
-        "food_expiration_steps": 5,
+        "fallow_period": 5,
+        "food_expiration_steps": 3,
         "marriage_from": 14,
         "marriage_to": 60,
         "bride_price_ratio": 0.6,
         "bride_price": 2,
+        "marriage_min_wealth": 5,
         "land_recovery_rate": 0.03,
         "land_max_capacity": 1,
-        "exchange_rate":{
-            "jade":100,
-            "obsidian": 50,
-            "stone":10
+        "exchange_rate": {
+            "jade": 5,
+            "obsidian": 3,
+            "stone": 1
         },
-        "luxury_good_storage": 0,
         "storage_ratio_low": 0.3,
         "storage_ratio_high": 1.8,
         "land_capacity_low": 0.8,
         "max_member": 25,
         "land_depreciate_factor": 0.02,
-        "fertility_scaler": 2,
-        "work_scale": 1.5, 
-        "luxury_goods_in_village": 0,
+        "fertility_scaler": 3,
+        "work_scale": 1.5,
         "water_source": 5,
-        "fish":10,
-        "max_fish":20,
+        "fish": 10,
+        "max_fish": 20,
         "trade_surplus_threshold": 1.5,
         "file_name": "simulation_plots.svg",
         "file_name_csv": "numerical_output.csv",
-        "demog_file":"demog_vectors_scaled.csv",
+        "demog_file": "demog_vectors_scaled.csv",
         "file_name_gif": "simulation_gif.gif",
         "prob_emigrate": 0.2,
         "farming_counter_max": 5,
-        "spare_food_enabled": true,
-        "fallow_farming":true,
-        "emigrate_enabled": true,
-        "trading_enabled": true,
-        "shifting_cultivation": true,
-        "conditions":{
-                    "use_fertility": true,
-                    "check_gender": true,
-                    "check_marital_status": true,
-                    "check_land": false,
-                    "exceed_member": true 
-                    }
+        
+        "mechanisms": {
+            "spare_food_enabled": true,
+            "fallow_farming": true,
+            "emigrate_enabled": true,
+            "trading_enabled": true,
+            "shifting_cultivation": true,
+            "fertility_limiting": true,
+            "fishing_enabled": true,
+            "resource_discovery": true,
+            "climate_effects": true,
+            "marriage_enabled": true,
+            "birth_limit_enabled": true,
+            "marriage_min_wealth_check": true,
+            "neighbor_boost_enabled": true
+        },
+        
+        "conditions": {
+            "use_fertility": true,
+            "check_gender": true,
+            "check_marital_status": true,
+            "check_land": false,
+            "exceed_member": true
+        }
     }
 }
